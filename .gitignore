@@ -10,5 +10,14 @@ pom.xml.asc
 .lein-plugins/
 .lein-failures
 
+# LaTeX junk files
+*-blx.bib
+*.aux
+*.bbl
+*.blg
+*.dvi
+*.log
+*.run.xml
+
 # emacs autosave
 *~
