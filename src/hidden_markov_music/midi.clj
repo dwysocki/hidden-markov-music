@@ -3,27 +3,35 @@
             [overtone.music.time :refer [apply-by now]]))
 
 (defn play-midi
+  "Plays a sequence of midi events using the given instrument."
   ([midi-seq inst]
      (play-midi midi-seq inst (now)))
   ([midi-seq inst start-time]
+     (play-midi midi-seq inst start-time 1))
+  ([midi-seq inst start-time division]
      (when (seq midi-seq)
        (let [{:keys [duration note timestamp velocity]} (first midi-seq)
              midi-seq-rest (next midi-seq)
              next-event (first midi-seq-rest)
              next-timestamp (:timestamp next-event)]
 
-         (at (+ start-time timestamp)
+         (at (+ start-time (* timestamp division))
              (inst :note note :velocity velocity
-                   :sustain duration))
+                   :sustain (* duration division)))
 
-         (apply-by (+ start-time next-timestamp)
-                   #'play-midi midi-seq-rest inst start-time [])))))
+         (apply-by (+ start-time (* next-timestamp division))
+                   #'play-midi midi-seq-rest inst start-time division [])))))
 
-(defn- time-elapsed [next-event prev-event]
+(defn- time-elapsed
+  [next-event prev-event]
   (- (:timestamp next-event)
      (:timestamp prev-event)))
 
-(defn parse-midi-events [events]
+(defn parse-midi-events
+  "Extracts the useful information from a sequence of midi events. Combines
+  note-on/note-off events into a single event, which plays the note for the
+  duration of time between the two events."
+  [events]
   (loop [events        events
          active-events {}
          notes         []]
