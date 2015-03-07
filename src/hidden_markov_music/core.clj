@@ -1,9 +1,10 @@
 (ns hidden-markov-music.core
-  (:use [overtone.live])
+;  (:use [overtone.live])
   (:require [clojure.pprint :refer [pprint]]
-            [overtone.inst.piano :refer [piano]]
-            [overtone.midi.file :refer [midi-url midi-file]]
-            [hidden-markov-music.midi :refer [play-midi parse-midi-events]]
+;            [overtone.inst.piano :refer [piano]]
+;            [overtone.midi.file :refer [midi-url midi-file]]
+            [hidden-markov-music.hmm :as hmm]
+;            [hidden-markov-music.midi :refer [play-midi parse-midi-events]]
             [clojure.tools.cli :refer [parse-opts]]
             [clojure.string :as string])
   (:gen-class))
@@ -38,20 +39,26 @@
 
 (defn -main
   [& args]
-  (let [{:keys [options arguments errors summary] :as opts}
-        (parse-opts args cli-options)]
-    (cond
-     (:help options)          (exit 0 (usage summary))
-     (pos? (count arguments)) (exit 2 (usage summary))
-     errors                   (exit 1 (error-msg errors)))
+  (pprint (hmm/random-hmm [:rainy :sunny]
+                          [:run :clean :shop])))
 
-    (let [midi (midi-file (:input options))
-          ;; this would be better with transducers
-          events (map (comp parse-midi-events :events) (:tracks midi))
-          start-time (+ (now) 1000)]
-      (doall
-       (pmap #(play-midi %
-                         piano
-                         start-time
-                         (:division options))
-             events)))))
+(comment
+ (defn -main
+   [& args]
+   (let [{:keys [options arguments errors summary] :as opts}
+         (parse-opts args cli-options)]
+     (cond
+      (:help options)          (exit 0 (usage summary))
+      (pos? (count arguments)) (exit 2 (usage summary))
+      errors                   (exit 1 (error-msg errors)))
+
+     (let [midi (midi-file (:input options))
+           ;; this would be better with transducers
+           events (map (comp parse-midi-events :events) (:tracks midi))
+           start-time (+ (now) 1000)]
+       (doall
+        (pmap #(play-midi %
+                          piano
+                          start-time
+                          (:division options))
+              events))))))

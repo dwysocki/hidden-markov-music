@@ -1,9 +1,32 @@
-(ns hidden-markov-music.hmm)
+(ns hidden-markov-music.hmm
+  (:require [hidden-markov-music.stats :as stats]))
 
-(defstruct hmm
-  :state-transition-probs
-  :observation-probs
-  :initial-state-dist)
+(defrecord HMM [state-transition-probs
+                observation-probs
+                initial-state-dist])
+
+(defn- random-state-transition-probs
+  "Returns a randomly generated transition probability map."
+  [possible-states]
+  (let [n-states (count possible-states)]
+    (into {}
+          (for [state possible-states]
+            (let [row-probs (stats/random-stochastic-vector n-states)]
+              [state
+               (into {}
+                     (map (fn [s p] [s p])
+                          possible-states
+                          row-probs))])))))
+
+(defn random-hmm
+  "Returns a model with random probabilities."
+  [possible-states possible-observations]
+  (HMM.
+   (stats/random-row-stochastic-map possible-states
+                                    possible-states)
+   (stats/random-row-stochastic-map possible-states
+                                    possible-observations)
+   (stats/random-stochastic-map possible-states)))
 
 (defn forward-probabilities
   "Returns P(O|λ), the likelihood of the observed sequence given the model."
