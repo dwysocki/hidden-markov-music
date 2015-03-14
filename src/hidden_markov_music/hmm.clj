@@ -1,35 +1,51 @@
 (ns hidden-markov-music.hmm
   (:require [hidden-markov-music.stats :as stats]))
 
-(defrecord HMM [possible-states
-                possible-observations
-                state-transition-probs
-                observation-probs
-                initial-state-dist])
+(defrecord HMM [states
+                observations
+                transition-prob
+                observation-prob
+                initial-state-prob])
 
 (defn random-hmm
   "Returns a model with random probabilities."
-  [possible-states possible-observations]
+  [states observations]
   (HMM.
-    possible-states
-    possible-observations
-    (stats/random-row-stochastic-map possible-states
-                                     possible-states)
-    (stats/random-row-stochastic-map possible-states
-                                     possible-observations)
-    (stats/random-stochastic-map possible-states)))
+    states
+    observations
+    (stats/random-row-stochastic-map states states)
+    (stats/random-row-stochastic-map states observations)
+    (stats/random-stochastic-map states)))
 
-(defn- alpha
-  "Returns α_{T-1}(i)"
-  [model observations state]
-  ; ...
-  )
+(defn alpha
+  "Returns α_t(i), for t > 0."
+  [model obs alpha-prev]
+  (zipmap (:states model)
+          (for [state (:states model)]
+            (* (get-in model [:observation-prob state obs])
+               (reduce +
+                       (for [other-state (:states model)]
+                         (* (get-in model [:transition-prob other-state state])
+                            (alpha-prev other-state))))))))
 
-(defn forward-probabilities
+(defn alpha-init
+  "Returns α_0(i)."
+  [model obs]
+  (zipmap (:states model)
+          (for [state (:states model)]
+            (* (get-in model [:initial-state-prob state])
+               (get-in model [:observation-prob   state obs])))))
+
+(defn observation-likelihood
   "Returns P(O|λ), the likelihood of the observed sequence given the model."
   [model observations]
-  (reduce + (map #(alpha model observations %)
-                 (:possible-states model))))
+  (loop [alpha-prev   (alpha-init model (first observations))
+         observations (next observations)]
+    (if (seq observations)
+      (let [obs        (first observations)
+            alpha-next (alpha model obs alpha-prev)]
+        (recur alpha-next (next observations)))
+      (reduce + (vals alpha-prev)))))
 
 
 (defn backward-probabilities
