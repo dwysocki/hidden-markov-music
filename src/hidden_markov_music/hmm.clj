@@ -64,24 +64,45 @@
                          (* (get-in model [:transition-prob other-state state])
                             (alpha-prev other-state))))))))
 
+(defn- alphas-iter
+  "Helper function for computing lazy seq of alphas.
+
+  Computes the next alpha, based on the previous alpha, and returns a lazy
+  sequence with the next alpha at the head."
+  [model observations alpha-prev]
+  ;; return nil when no observations remain
+  (when-let [observations (seq observations)]
+    (let [;; compute the next α
+          alpha-next (alpha model
+                            (first observations)
+                            alpha-prev)]
+      ;; lazily compute the remaining α's
+      (cons alpha-next
+            (lazy-seq (alphas-iter model
+                                   (rest observations)
+                                   alpha-next))))))
+
+(defn alphas
+  "Returns a lazy seq of α_1(i), α_2(i), ..., α_T(i)."
+  [model observations]
+  (let [;; compute α_1(i) here because it is special
+        alpha-initial (alpha-init model (first observations))]
+    ;; construct the lazy seq of α's, with α_1(i) at the head
+    (cons alpha-initial
+          (lazy-seq (alphas-iter model
+                                 (rest observations)
+                                 alpha-initial)))))
+
 (defn forward-likelihood
   "Returns P[O|λ], using the forward algorithm.
 
   This is the likelihood of the observed sequence O given the model λ."
   [model observations]
-  (let [;; α_1(i) for all states i
-        alpha-initial (alpha-init model (first observations))
-        ;; α_T(i) for all states i
-        alpha-final   (reduce
-                        ;; α_t(i) depends on α_{t-1}(j) and O_t
-                        (fn [alpha-prev obs]
-                          (alpha model obs alpha-prev))
-                        ;; provide basis to recursion
-                        alpha-initial
-                        ;; O_1 already included in alpha-initial,
-                        ;; so operate only on O_2, ..., O_T
-                        (next observations))]
-    ;; return the sum of α_T(i) for all states i
+  (let [;; construct the lazy seq of α's
+        as (alphas model observations)
+        ;; pull out the final α, α_T(i)
+        alpha-final (last as)]
+    ;; return the sum over i of α_T(i), which gives P[O|λ]
     (reduce + (vals alpha-final))))
 
 (defn beta
@@ -110,35 +131,47 @@
                          (get-in model
                                  [:observation-prob other-state obs])))))))
 
+(defn- betas-iter
+  "Helper function for computing lazy seq of β's.
+
+  Computes the current β, based on the next β, and returns a lazy sequence with
+  the current β at the head."
+  [model observations beta-next]
+  ;; return nil when no observations remain
+  (when-let [observations (seq observations)]
+    (let [;; compute the next β
+          beta-next (beta model
+                          (first observations)
+                          beta-next)]
+      ;; lazily compute the remaining β's
+      (cons beta-next
+            (lazy-seq (betas-iter model
+                                  (rest observations)
+                                  beta-next))))))
+
+(defn betas
+  "Returns a lazy seq of β_T(i), β_{T-1}(i), ..., β_1(i)."
+  [model observations]
+  (let [;; β_T(i) for all states i is 1.0
+        beta-final (zipmap (:states model)
+                           (repeat 1.0))]
+    ;; construct the lazy seq of β's, with β_T(i) at the head
+    (cons beta-final
+          (lazy-seq (betas-iter model
+                                (reverse (rest observations))
+                                beta-final)))))
+
 (defn backward-likelihood
   "Returns P[O|λ], using the backward algorithm.
 
   This is the likelihood of the observed sequence O given the model λ."
   [model observations]
-  (let [;; β_T(i) for all states i is 1.0
-        beta-final   (zipmap (:states model)
-                             (repeat 1.0))
-        ;; β_1(i) for all states i
-        beta-initial (reduce
-                       ;; β_t(i) depends on β_{t+1}(j) and O_t
-                       (fn [beta-next obs]
-                         (beta model obs beta-next))
-                       ;; provide basis to recursion
-                       beta-final
-                       ;; O_1 will be included in the final reduction,
-                       ;; so operate only on O_T, O_{T-1}, ..., O_3, O_2
-                       (reverse (next observations)))
-        ;; α_1(i) is needed to compute P[O|λ]
+  (let [;; construct the lazy seq of β's
+        bs (betas model observations)
+        ;; pull out the initial β, β_1(i)
+        beta-initial (last bs)
+        ;; compute α_1(i)
         alpha-initial (alpha-init model (first observations))]
     ;; P[O|λ] = β_1(1)*α_1(1) + ... + β_1(N)*α_1(N)
-    (reduce + (vals (merge-with * beta-initial alpha-initial)))))
-
-
-(defn posterior-marginals
-  "Returns the distribution P(X|O), the posterior marginals of all hidden state
-  variables, given the observed sequence."
-  [observations & more?])
-
-(defn train
-  "Trains a model on an observed sequence, using the Baum-Welch algorithm."
-  ([model observations]))
+    (reduce + (vals (merge-with * beta-initial
+                                  alpha-initial)))))
