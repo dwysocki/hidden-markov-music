@@ -175,3 +175,78 @@
     ;; P[O|λ] = β_1(1)*α_1(1) + ... + β_1(N)*α_1(N)
     (reduce + (vals (merge-with * beta-initial
                                   alpha-initial)))))
+
+(defn delta-psi-init
+  [model obs]
+  {:delta
+   (zipmap (:states model)
+           (for [state (:states model)]
+             (* (get-in model [:initial-prob state])
+                (get-in model [:observation-prob state obs])))),
+   ;; initial state has no preceding states
+   :psi nil})
+
+(defn delta-psi
+  [model obs delta-prev]
+  (let [weighted-deltas
+        (zipmap (:states model)
+                (for [state (:states model)]
+                  (zipmap (:states model)
+                          (for [other-state (:states model)]
+                            (* (get delta-prev other-state)
+                               (get-in model [:transition-prob
+                                              other-state state]))))))
+        max-entries
+        (zipmap (:states model)
+                (for [[state entries] weighted-deltas]
+                  (apply max-key val entries)))]
+    {:delta
+     (zipmap (:states model)
+             (for [[state [other-state weighted-delta]] max-entries]
+               (* weighted-delta
+                  (get-in model [:observation-prob other-state obs])))),
+     :psi
+     (zipmap (:states model)
+             (for [[state [other-state weighted-delta]] max-entries]
+               other-state))}))
+
+(defn- delta-psis-iter
+  [model observations delta-prev]
+  (when-let [observations (seq observations)]
+    (let [delta-psi-next (delta-psi model
+                                    (first observations)
+                                    delta-prev)]
+      (cons delta-psi-next
+            (lazy-seq (delta-psis-iter model
+                                       (rest observations)
+                                       (:delta delta-psi-next)))))))
+
+(defn delta-psis
+  [model observations]
+  (let [delta-psi-initial (delta-psi-init model (first observations))]
+    (cons delta-psi-initial
+          (lazy-seq (delta-psis-iter model
+                                     (rest observations)
+                                     (:delta delta-psi-initial))))))
+
+(defn- viterbi-backtrack
+  [psis state-next]
+  (when-let [psi (first psis)]
+    (let [state-current (psi state-next)]
+      (cons state-current
+            (lazy-seq (viterbi-backtrack (rest psis)
+                                         state-current))))))
+
+(defn viterbi-path
+  [model observations]
+  (let [dps (delta-psis model observations)
+        deltas (map :delta dps)
+        psis   (map :psi   dps)
+        delta-final (last deltas)
+        [state-final likelihood] (apply max-key val delta-final)
+        optimal-state-sequence
+        (cons state-final
+              (lazy-seq (viterbi-backtrack (reverse psis)
+                                           state-final)))]
+    {:likelihood     likelihood
+     :state-sequence (reverse optimal-state-sequence)}))
