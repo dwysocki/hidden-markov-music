@@ -1,28 +1,8 @@
 (ns hidden-markov-music.midi
-  (:require [overtone.live       :refer [at]]
-            [overtone.music.time :refer [apply-by now]]))
+  "Functions pertaining to reading, writing, and transforming MIDI files")
 
-(defn play-midi
-  "Plays a sequence of midi events using the given instrument."
-  ([midi-seq inst]
-     (play-midi midi-seq inst (now)))
-  ([midi-seq inst start-time]
-     (play-midi midi-seq inst start-time 1))
-  ([midi-seq inst start-time division]
-     (when (seq midi-seq)
-       (let [{:keys [duration note timestamp velocity]} (first midi-seq)
-             midi-seq-rest (next midi-seq)
-             next-event (first midi-seq-rest)
-             next-timestamp (:timestamp next-event)]
-
-         (at (+ start-time (* timestamp division))
-             (inst :note note :velocity velocity
-                   :sustain (* duration division)))
-
-         (apply-by (+ start-time (* next-timestamp division))
-                   #'play-midi midi-seq-rest inst start-time division [])))))
-
-(defn- time-elapsed
+(defn time-elapsed
+  "Returns the time difference between two events."
   [next-event prev-event]
   (- (:timestamp next-event)
      (:timestamp prev-event)))

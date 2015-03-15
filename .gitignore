@@ -10,6 +10,9 @@ pom.xml.asc
 .lein-plugins/
 .lein-failures
 
+# auto generated documentation
+/doc/
+
 # LaTeX junk files
 *-blx.bib
 *.aux

@@ -1,27 +1,17 @@
-(ns hidden-markov-music.core
-;  (:use [overtone.live])
+(ns ^:no-doc hidden-markov-music.core
+  "The Hidden Markov Music command line interface resides here.
+  Currently no such interface exists."
   (:require [clojure.pprint :refer [pprint]]
-;            [overtone.inst.piano :refer [piano]]
-;            [overtone.midi.file :refer [midi-url midi-file]]
             [hidden-markov-music.hmm :as hmm]
-;            [hidden-markov-music.midi :refer [play-midi parse-midi-events]]
             [clojure.tools.cli :refer [parse-opts]]
             [clojure.string :as string])
   (:gen-class))
 
 (def cli-options
-  [["-i" "--input MIDI-FILE" "Input midi file"]
-   ["-t" "--track TRACK-NUM" "Track number"
-    :default 0
-    :parse-fn #(Integer/parseInt %)
-    :validate [#(< 0 % 0x10000) "Must be a number between 0 and 65536"]]
-   ["-d" "--division DIV" "Timestamp division"
-    :default 1
-    :parse-fn #(Double/parseDouble %)]
-   ["-h" "--help"]])
+  [["-h" "--help"]])
 
 (defn usage [options-summary]
-  (->> ["Simply plays the given midi file"
+  (->> ["Doesn't do anything ... yet."
         ""
         "Usage: hidden-markov-music [options]"
         ""
@@ -41,24 +31,3 @@
   [& args]
   (pprint (hmm/random-hmm [:rainy :sunny]
                           [:run :clean :shop])))
-
-(comment
- (defn -main
-   [& args]
-   (let [{:keys [options arguments errors summary] :as opts}
-         (parse-opts args cli-options)]
-     (cond
-      (:help options)          (exit 0 (usage summary))
-      (pos? (count arguments)) (exit 2 (usage summary))
-      errors                   (exit 1 (error-msg errors)))
-
-     (let [midi (midi-file (:input options))
-           ;; this would be better with transducers
-           events (map (comp parse-midi-events :events) (:tracks midi))
-           start-time (+ (now) 1000)]
-       (doall
-        (pmap #(play-midi %
-                          piano
-                          start-time
-                          (:division options))
-              events))))))

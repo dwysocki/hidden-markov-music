@@ -9,26 +9,26 @@
   (testing "forward algorithm"
     (testing "with Oliver Ibe's Example 11"
       (is (<= 0.0035
-              (hmm/forward-likelihood tm/ibe-ex-11-model
+              (hmm/likelihood-forward tm/ibe-ex-11-model
                                       tm/ibe-ex-11-observations)
               0.0037)))
 
     (testing "with deterministic model"
-      (is (= (hmm/forward-likelihood tm/deterministic-model
+      (is (= (hmm/likelihood-forward tm/deterministic-model
                                      tm/deterministic-certain-observations)
              1.0))
-      (is (= (hmm/forward-likelihood tm/deterministic-model
+      (is (= (hmm/likelihood-forward tm/deterministic-model
                                      tm/deterministic-impossible-observations)
              0.0)))
 
     (testing "with 50-50 model"
-      (is (= (hmm/forward-likelihood tm/*50-50-model
+      (is (= (hmm/likelihood-forward tm/*50-50-model
                                      tm/a-50-50-observations)
              0.5))
-      (is (= (hmm/forward-likelihood tm/*50-50-model
+      (is (= (hmm/likelihood-forward tm/*50-50-model
                                      tm/b-50-50-observations)
              0.5))
-      (is (= (hmm/forward-likelihood tm/*50-50-model
+      (is (= (hmm/likelihood-forward tm/*50-50-model
                                      tm/impossible-50-50-observations)
              0.0)))))
 
@@ -36,25 +36,25 @@
   (testing "backward algorithm"
     (testing "with Oliver Ibe's Example 11"
       (is (<= 0.0035
-              (hmm/backward-likelihood tm/ibe-ex-11-model
+              (hmm/likelihood-backward tm/ibe-ex-11-model
                                        tm/ibe-ex-11-observations)
               0.0037)))
 
     (testing "with deterministic model"
-      (is (= (hmm/backward-likelihood tm/deterministic-model
+      (is (= (hmm/likelihood-backward tm/deterministic-model
                                       tm/deterministic-certain-observations)
              1.0))
-      (is (= (hmm/backward-likelihood tm/deterministic-model
+      (is (= (hmm/likelihood-backward tm/deterministic-model
                                       tm/deterministic-impossible-observations)
              0.0)))
 
     (testing "with 50-50 model"
-      (is (= (hmm/backward-likelihood tm/*50-50-model
+      (is (= (hmm/likelihood-backward tm/*50-50-model
                                       tm/a-50-50-observations)
              0.5))
-      (is (= (hmm/backward-likelihood tm/*50-50-model
+      (is (= (hmm/likelihood-backward tm/*50-50-model
                                       tm/b-50-50-observations)
              0.5))
-      (is (= (hmm/backward-likelihood tm/*50-50-model
+      (is (= (hmm/likelihood-backward tm/*50-50-model
                                       tm/impossible-50-50-observations)
              0.0)))))

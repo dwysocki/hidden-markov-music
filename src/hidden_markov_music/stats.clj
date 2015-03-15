@@ -1,4 +1,5 @@
-(ns hidden-markov-music.stats)
+(ns hidden-markov-music.stats
+  "General statistical functions.")
 
 (defn normalize
   "Normalizes a sequence."
@@ -23,17 +24,19 @@
   The outer key corresponds to a row, and the nested key corresponds to a
   column.
 
-  For example, take the matrix X given by:
+  For example, take the matrix `X` given by:
 
+  ```
       0 1 2
     +-------+
   0 | a b c |
   1 | d e f |
   2 | g h i |
     +-------+
+  ```
 
-  To obtain the element d, one could use `(get-in X [1 0])`, or to obtain the
-  element h, one could use `(get-in X [2 1])`."
+  To obtain the element `d`, one could use `(get-in X [1 0])`, or to obtain the
+  element `h`, one could use `(get-in X [2 1])`."
   [row-keys col-keys]
   (let [n-cols (count col-keys)]
     (into {}

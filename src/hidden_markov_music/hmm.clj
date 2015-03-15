@@ -9,6 +9,12 @@
      observation-prob
      initial-prob])
 
+;; HMM has no docstring, but the functions it generates do.
+;; attach some more descriptive text to those functions
+(doseq [f [#'->HMM #'map->HMM]]
+  (alter-meta! f update-in [:doc] str
+               "\nConstructs a representation of a hidden Markov model."))
+
 (defn random-hmm
   "Returns a model with random probabilities, given the state and observation
   labels."
@@ -20,18 +26,20 @@
     (stats/random-row-stochastic-map states observations)
     (stats/random-stochastic-map states)))
 
-(defn initial-forward-probability
-  "Returns α_1(i), for all states i.
+(defn forward-probability-initial
+  "Returns `α_1(i)`, for all states `i`.
 
-  This is the probability of initially being in state i after observing the
-  initial observation, O_1. Depends only on the model and initial observation.
+  This is the probability of initially being in state `i` after observing the
+  initial observation, `o_1`. Depends only on the model and initial observation.
 
   Output is in the format
 
-    {:state-1 α_1(1),
-     :state-2 α_1(2),
-     ...
-     :state-N α_1(N)}"
+  ```
+  {:state-1 α_1(1),
+   :state-2 α_1(2),
+   ...
+   :state-N α_1(N)}
+  ```"
   [model obs]
   ;; map each state to its initial α
   (zipmap (:states model)
@@ -40,20 +48,20 @@
             (* (get-in model [:initial-prob     state])
                (get-in model [:observation-prob state obs])))))
 
-(defn next-forward-probability
-  "Returns α_t(i), for all states i, for t > 1, where α_t(i) is the probability
-  of being in state s_i at time t after observing the sequence
-  o_1, o_2, ..., o_t..
-
-  This is the probability of being in state i after observing the observation
-  sequence, o_1, ..., o_t. Depends on the model, α_{t-1}(i), and o_t.
+(defn forward-probability-next
+  "Returns `α_t(i)`, for all states `i`, for `t > 1`, where `α_t(i)` is the
+  probability of being in state `s_i` at time `t` after observing the sequence
+  `o_1, o_2, ..., o_t`. Depends on the model `λ`, previous forward probability
+  `α_{t-1}(i)`, and current observation `o_t`.
 
   Output is in the format
 
-    {s_1 α_t(1),
-     s_2 α_t(2),
-     ...
-     s_N α_t(N)}"
+  ```
+  {s_1 α_t(1),
+   s_2 α_t(2),
+   ...
+   s_N α_t(N)}
+  ```"
   [model obs alpha-prev]
   ;; map each state to its α
   (zipmap (:states model)
@@ -65,63 +73,65 @@
                          (* (get-in model [:transition-prob other-state state])
                             (alpha-prev other-state))))))))
 
-(defn- forward-probabilities-helper
-  "Helper function for forward-probabilities.
+(defn- forward-probability-helper
+  "Helper function for computing lazy seq of `α`'s.
 
-  Computes the next α, based on the previous α, and returns a lazy sequence
-  with the next α at its head."
+  Computes the current `α`, based on the previous `α`, and returns a lazy
+  sequence with the current `α` at its head."
   [model observations alpha-prev]
   ;; return nil when no observations remain
   (when-let [observations (seq observations)]
     (let [;; compute the next α
-          alpha-current (next-forward-probability model
+          alpha-current (forward-probability-next model
                                                   (first observations)
                                                   alpha-prev)]
       ;; lazily compute the remaining α's
       (cons alpha-current
-            (lazy-seq (forward-probabilities-helper model
-                                                    (rest observations)
-                                                    alpha-current))))))
+            (lazy-seq (forward-probability-helper model
+                                                  (rest observations)
+                                                  alpha-current))))))
 
-(defn forward-probabilities
-  "Returns a lazy seq of α_1(i), α_2(i), ..., α_T(i), where α_t(i) is the
-  probability of being in state s_i at time t after observing the sequence
-  o_1, o_2, ..., o_t."
+(defn forward-probability-seq
+  "Returns a lazy seq of `α_1(i), α_2(i), ..., α_T(i)`, where `α_t(i)` is the
+  probability of being in state `s_i` at time `t` after observing the sequence
+  `o_1, o_2, ..., o_t`."
   [model observations]
   (let [;; compute α_1(i) separately because it is special
-        alpha-initial (initial-forward-probability model
+        alpha-initial (forward-probability-initial model
                                                    (first observations))]
     ;; construct the lazy seq of α's, with α_1(i) at the head
     (cons alpha-initial
-          (lazy-seq (forward-probabilities-helper model
-                                                  (rest observations)
-                                                  alpha-initial)))))
+          (lazy-seq (forward-probability-helper model
+                                                (rest observations)
+                                                alpha-initial)))))
 
-(defn forward-likelihood
-  "Returns P[O|λ], using the forward algorithm.
+(defn likelihood-forward
+  "Returns `P[O|λ]`, using the forward algorithm.
 
-  This is the likelihood of the observed sequence O given the model λ."
+  This is the likelihood of the observed sequence `O` given the model `λ`."
   [model observations]
   (let [;; construct the lazy seq of α's
-        alphas (forward-probabilities model observations)
+        alphas (forward-probability-seq model observations)
         ;; pull out the final α, α_T(i)
         alpha-final (last alphas)]
     ;; return the sum over i of α_T(i), which gives P[O|λ]
     (reduce + (vals alpha-final))))
 
-(defn prev-backward-probability
-  "Returns β_t(i), for all states i, for t < T.
+(defn backward-probability-prev
+  "Returns `β_t(i)`, for all states `i`, for `t < T`.
 
   This is the probability of observing the partial observation sequence,
-  o_t, o_{t+1}, ..., o_T, conditional on being in state i at time t. Depends on
-  the model, β_{t+1}(j), and the most recent observation.
+  `o_{t+1}, ..., o_T`, conditional on being in state `i` at time `t`.
+  Depends on the model, `β_{t+1}(j)`, and the next observation `o_{t+1}`.
 
   Output is in the format
 
-    {:state-1 β_t(1),
-     :state-2 β_t(2),
-     ...
-     :state-N β_t(N)}"
+  ```
+  {:state-1 β_t(1),
+   :state-2 β_t(2),
+   ...
+   :state-N β_t(N)}
+  ```"
   [model obs beta-next]
   ;; map each state to its β
   (zipmap (:states model)
@@ -135,59 +145,64 @@
                          (get-in model
                                  [:observation-prob other-state obs])))))))
 
-(defn- backward-probabilities-helper
-  "Helper function for computing lazy seq of β's.
+(defn- backward-probability-helper
+  "Helper function for computing lazy seq of `β`'s.
 
-  Computes the current β, based on the next β, and returns a lazy sequence with
-  the current β at its head."
+  Computes the current `β`, based on the next `β`, and returns a lazy sequence
+  with the current `β` at its head."
   [model observations beta-next]
   ;; return nil when no observations remain
   (when-let [observations (seq observations)]
     (let [;; compute the next β
-          beta-current (prev-backward-probability model
+          beta-current (backward-probability-prev model
                                                   (first observations)
                                                   beta-next)]
       ;; lazily compute the remaining β's
       (cons beta-current
-            (lazy-seq (backward-probabilities-helper model
-                                                     (rest observations)
-                                                     beta-current))))))
+            (lazy-seq (backward-probability-helper model
+                                                   (rest observations)
+                                                   beta-current))))))
 
-(defn backward-probabilities
-  "Returns a lazy seq of β_T(i), β_{T-1}(i), ..., β_1(i)."
+(defn backward-probability-seq
+  "Returns a lazy seq of `β_T(i), β_{T-1}(i), ..., β_1(i)`, where `β_t(i)` is
+  the probability of observing `o_{t+1}, ..., o_T`, given that the system is in
+  state `s_i` at time `t`."
   [model observations]
   (let [;; β_T(i) for all states i is 1.0
         beta-final (zipmap (:states model)
                            (repeat 1.0))]
     ;; construct the lazy seq of β's, with β_T(i) at the head
     (cons beta-final
-          (lazy-seq (backward-probabilities-helper model
-                                                   (reverse (rest observations))
-                                                   beta-final)))))
+          (lazy-seq (backward-probability-helper model
+                                                 (reverse (rest observations))
+                                                 beta-final)))))
 
-(defn backward-likelihood
-  "Returns P[O|λ], using the backward algorithm.
+(defn likelihood-backward
+  "Returns `P[O|λ]`, using the backward algorithm.
 
-  This is the likelihood of the observed sequence O given the model λ."
+  This is the likelihood of the observed sequence `O` given the model `λ`."
   [model observations]
   (let [;; construct the lazy seq of β's
-        betas (backward-probabilities model observations)
+        betas (backward-probability-seq model observations)
         ;; pull out the initial β, β_1(i)
         beta-initial (last betas)
         ;; compute α_1(i)
-        alpha-initial (initial-forward-probability model
+        alpha-initial (forward-probability-initial model
                                                    (first observations))]
     ;; P[O|λ] = β_1(1)*α_1(1) + ... + β_1(N)*α_1(N)
     (reduce + (vals (merge-with * beta-initial
                                   alpha-initial)))))
 
-(defn initial-state-path
-  "Returns ψ_1(i) and δ_1(i), for the given model λ and first observation o_1.
+(defn state-path-initial
+  "Returns `ψ_1(i)` and `δ_1(i)`, for the given model `λ` and first observation
+  `o_1`.
 
   Output takes the form:
 
-    {:delta δ_1(i),
-     :psi   ψ_1(i)}"
+  ```
+  {:delta δ_1(i),
+   :psi   ψ_1(i)}
+  ```"
   [model obs]
   {:delta
    (zipmap (:states model)
@@ -198,14 +213,16 @@
    ;; initial state has no preceding states, so ψ_1(i) = nil
    :psi nil})
 
-(defn next-state-path
-  "Returns ψ_t(i) and δ_t(i), for the given model λ and observation o_t.
-  Depends on the previous δ_{t-1}(i).
+(defn state-path-next
+  "Returns `ψ_t(i)` and `δ_t(i)`, for the given model `λ` and current
+  observation `o_t`. Depends on the previous `δ_{t-1}(i)`.
 
   Output takes the form:
 
-    {:delta δ_t(i),
-     :psi   ψ_t(i)}"
+  ```
+  {:delta δ_t(i),
+   :psi   ψ_t(i)}
+  ```"
   [model obs delta-prev]
   (let [;; this is a mapping of
         ;; state-j -> state-i -> δ_{t-1}(i) p_{ij}
@@ -238,42 +255,43 @@
              (for [[state [other-state weighted-delta]] max-entries]
                other-state))}))
 
-(defn- state-paths-helper
-  "Helper function for computing lazy seq of ψ's and δ's.
+(defn- state-path-helper
+  "Helper function for computing lazy seq of `ψ`'s and `δ`'s.
 
-  Computes the current ψ and δ, based on the previous δ, and returns a lazy
-  sequence with the current ψ and δ at its head."
+  Computes the current `ψ` and `δ`, based on the previous `δ`, and returns a
+  lazy sequence with the current `ψ` and `δ` at its head."
   [model observations delta-prev]
   (when-let [observations (seq observations)]
-    (let [delta-psi-next (next-state-path model
+    (let [delta-psi-next (state-path-next model
                                           (first observations)
                                           delta-prev)]
       (cons delta-psi-next
-            (lazy-seq (state-paths-helper model
-                                          (rest observations)
-                                          (:delta delta-psi-next)))))))
+            (lazy-seq (state-path-helper model
+                                         (rest observations)
+                                         (:delta delta-psi-next)))))))
 
-(defn state-paths
+(defn state-path-seq
   "Returns a lazy seq of previous states paired with their probabilities,
-  [ψ_1(i) δ_1(i)], ... [ψ_T(i) δ_T(i)],
-  where ψ_t(i) is a mapping from state i to the state j which most likely
-  preceded it, and
-  where δ_t(i) is a mapping from state i to the probability of the most likely
-  state path leading up to it from state j."
+  `[ψ_1(i) δ_1(i)], ... [ψ_T(i) δ_T(i)]`,
+  where `ψ_t(i)` is a mapping from state `i` to the state `j` which most likely
+  preceded it, and `δ_t(i)` is a mapping from state `i` to the probability of
+  the most likely state path leading up to it from state `j`."
   [model observations]
-  (let [delta-psi-initial (initial-state-path model
+  (let [delta-psi-initial (state-path-initial model
                                               (first observations))]
     (cons delta-psi-initial
-          (lazy-seq (state-paths-helper model
-                                        (rest observations)
-                                        (:delta delta-psi-initial))))))
+          (lazy-seq (state-path-helper model
+                                       (rest observations)
+                                       (:delta delta-psi-initial))))))
 
 (defn- viterbi-backtrack
   "Lazily constructs the optimal state sequence by backtracking, using
 
-    q_t = ψ_{t+1}(q_{t+1})
+  ```
+  q_t = ψ_{t+1}(q_{t+1})
+  ```
 
-  Takes as input ψ_{T-1}(i), ..., ψ_1(i), and q_T."
+  Takes as input `ψ_{T-1}(i), ..., ψ_1(i)`, and `q_T`."
   [psis state-next]
   (when-let [psi (first psis)]
     (let [state-current (psi state-next)]
@@ -282,20 +300,23 @@
                                          state-current))))))
 
 (defn viterbi-path
-  "Returns one of the state sequences Q which maximizes P[Q|O,λ], along with
-  the likelihood itself, P[Q|O,λ]. There are potentially many such paths, all
-  with equal likelihood, and one of those is chosen randomly.
+  "Returns one of the state sequences `Q` which maximizes `P[Q|O,λ]`, along
+  with the likelihood itself, `P[Q|O,λ]`. There are potentially many such
+  paths, all with equal likelihood, and one of those is chosen arbitrarily.
 
   This is accomplished by means of the Viterbi algorithm, and takes into
-  account that q_t depends on q_{t-1}, and not just o_t.
+  account that `q_t` depends on `q_{t-1}`, and not just `o_t`, avoiding
+  impossible state sequences.
 
   Output takes the form:
 
-    {:likelihood     P[Q|O,λ],
-     :state-sequence Q}"
+  ```
+  {:likelihood     P[Q|O,λ],
+   :state-sequence Q}
+  ```"
   [model observations]
   (let [;; compute a lazy seq of [ψ_1(i) δ_1(i)], ... [ψ_T(i) δ_T(i)]
-        delta-psis (state-paths model observations)
+        delta-psis (state-path-seq model observations)
         ;; pull the δ's and ψ's from this lazy seq
         deltas     (map :delta delta-psis)
         psis       (map :psi   delta-psis)

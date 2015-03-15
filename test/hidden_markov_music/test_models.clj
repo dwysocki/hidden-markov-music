@@ -1,6 +1,8 @@
 (ns hidden-markov-music.test-models
   (:import [hidden_markov_music.hmm HMM]))
 
+;; HMM taken from Example 11 in Oliver Ibe's
+;; "Markov Processes for Stochastic Modeling"
 (def ibe-ex-11-model
   (HMM. [:sunny :cloudy :rainy]
 
@@ -37,6 +39,10 @@
   #{[:sunny :sunny :sunny  :rainy :rainy]
     [:sunny :sunny :cloudy :rainy :rainy]})
 
+;; fully deterministic HMM, whose states must be
+;; :A -> :B -> :C -> :A -> ...
+;; and whose emissions must be
+;; :a -> :b -> :c -> :a -> ...
 (def deterministic-model
   (HMM. [:A :B :C]
 
@@ -75,6 +81,7 @@
 (def deterministic-certain-viterbi-path
   [:A :B :C :A :B :C])
 
+;; model which can begin in one of two states, but from there is deterministic
 (def *50-50-model
   (HMM. [:A :B]
 
