@@ -1,7 +1,7 @@
 (ns hidden-markov-music.test-models
   (:import [hidden_markov_music.hmm HMM]))
 
-(def ibe-ex-11-1-model
+(def ibe-ex-11-model
   (HMM. [:sunny :cloudy :rainy]
 
         [:good :bad :so-so]
@@ -30,8 +30,12 @@
          :cloudy (/ 3.0),
          :rainy  (/ 3.0)}))
 
-(def ibe-ex-11-1-observations
+(def ibe-ex-11-observations
   [:good :good :so-so :bad :bad])
+
+(def ibe-ex-11-viterbi-paths
+  #{[:sunny :sunny :sunny  :rainy :rainy]
+    [:sunny :sunny :cloudy :rainy :rainy]})
 
 (def deterministic-model
   (HMM. [:A :B :C]
@@ -68,6 +72,9 @@
 (def deterministic-impossible-observations
   [:c :b :c :c :a])
 
+(def deterministic-certain-viterbi-path
+  [:A :B :C :A :B :C])
+
 (def *50-50-model
   (HMM. [:A :B]
 
@@ -90,7 +97,13 @@
   [:a :b :a :b :a :b])
 
 (def b-50-50-observations
-  [:b :a :b :a :b])
+  [:b :a :b :a :b :a])
 
 (def impossible-50-50-observations
   [:a :a :b :a :b])
+
+(def a-50-50-viterbi-path
+  [:A :B :A :B :A :B])
+
+(def b-50-50-viterbi-path
+  [:B :A :B :A :B :A])

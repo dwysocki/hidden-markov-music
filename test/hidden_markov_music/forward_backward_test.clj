@@ -7,10 +7,10 @@
 
 (deftest forward-algorithm-test
   (testing "forward algorithm"
-    (testing "with Oliver Ibe's Example 11.1"
+    (testing "with Oliver Ibe's Example 11"
       (is (<= 0.0035
-              (hmm/forward-likelihood tm/ibe-ex-11-1-model
-                                      tm/ibe-ex-11-1-observations)
+              (hmm/forward-likelihood tm/ibe-ex-11-model
+                                      tm/ibe-ex-11-observations)
               0.0037)))
 
     (testing "with deterministic model"
@@ -34,10 +34,10 @@
 
 (deftest backward-algorithm-test
   (testing "backward algorithm"
-    (testing "with Oliver Ibe's Example 11.1"
+    (testing "with Oliver Ibe's Example 11"
       (is (<= 0.0035
-              (hmm/backward-likelihood tm/ibe-ex-11-1-model
-                                       tm/ibe-ex-11-1-observations)
+              (hmm/backward-likelihood tm/ibe-ex-11-model
+                                       tm/ibe-ex-11-observations)
               0.0037)))
 
     (testing "with deterministic model"
