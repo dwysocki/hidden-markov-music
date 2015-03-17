@@ -1,6 +1,7 @@
 (ns hidden-markov-music.hmm
   "General implementation of a hidden Markov model, and associated algorithms."
-  (:require [hidden-markov-music.stats :as stats]))
+  (:require [hidden-markov-music.stats :as  stats]
+            [hidden-markov-music.random :refer [select-random-key]]))
 
 (defrecord HMM
     [states
@@ -335,3 +336,47 @@
     {:likelihood     likelihood
      ;; state sequence was constructed via backtracking, and must be reversed
      :state-sequence (reverse optimal-state-sequence)}))
+
+(defn random-initial-state
+  "Randomly selects an initial state from the model, weighed by the initial
+  probability distribution."
+  [model]
+  (select-random-key (:initial-prob model)))
+
+(defn random-transition
+  "Randomly selects a state to transition to from the current state, weighed
+  by the transition probability distribution."
+  [model state]
+  (-> model
+      (get-in [:transition-prob state])
+      select-random-key))
+
+(defn random-emission
+  "Randomly emits an observation from the current state, weighed by the
+  observation probability distribution."
+  [model state]
+  (-> model
+      (get-in [:observation-prob state])
+      select-random-key))
+
+(defn sample-states
+  "Randomly walks through the states of the model, returning an infinite lazy
+  seq of those states.
+
+  See [[random-initial-state]] and [[random-transition]] for details on the
+  decisions made at each step."
+  [model]
+  (iterate (partial random-transition model)
+           (random-initial-state model)))
+
+(defn sample-emissions
+  "Randomly walks through the states of the model, returning an infinite lazy
+  seq of emissions from those states. One can optionally provide predetermined
+  states, and emissions will be made from it randomly.
+
+  See [[sample-states]] and [[random-emission]] for details."
+  ([model]
+     (sample-emissions model (sample-states model)))
+  ([model states]
+     (map (partial random-emission model)
+          states)))
