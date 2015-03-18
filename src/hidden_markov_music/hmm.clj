@@ -380,3 +380,7 @@
   ([model states]
      (map (partial random-emission model)
           states)))
+
+(defn train-model
+  "Trains the model via the Baum-Welch algorithm."
+  [model observations])
