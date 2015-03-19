@@ -1,5 +1,6 @@
 (ns hidden-markov-music.stats
-  "General statistical functions.")
+  "General statistical functions."
+  (:require [hidden-markov-music.util :refer [map-for]]))
 
 (defn normalize
   "Normalizes a sequence."
@@ -39,7 +40,6 @@
   element `h`, one could use `(get-in X [2 1])`."
   [row-keys col-keys]
   (let [n-cols (count col-keys)]
-    (into {}
-          (for [r row-keys]
-            (let [col-probs (random-stochastic-vector n-cols)]
-              [r, (zipmap col-keys col-probs)])))))
+    (map-for [r row-keys]
+             (let [col-probs (random-stochastic-vector n-cols)]
+               (zipmap col-keys col-probs)))))
