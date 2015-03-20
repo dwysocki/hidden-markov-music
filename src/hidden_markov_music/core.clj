@@ -22,6 +22,11 @@
 (def song-model
   (HMM. song-states
         song-notes
+        {:beginning 1.0,
+         :middle    0.0,
+         :chorus    0.0,
+         :finale    0.0,
+         :end       0.0}
         {:beginning {:beginning 0.8,
                      :middle    0.2,
                      :chorus    0.0,
@@ -47,12 +52,7 @@
                      :chorus    0.0,
                      :finale    0.0,
                      :end       1.0}}
-        (stats/random-row-stochastic-map song-states song-notes)
-        {:beginning 1.0,
-         :middle    0.0,
-         :chorus    0.0,
-         :finale    0.0,
-         :end       0.0}))
+        (stats/random-row-stochastic-map song-states song-notes)))
 
 (def models
   {"weather" random-weather-model,

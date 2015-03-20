@@ -7,9 +7,9 @@
 (defrecord HMM
     [states
      observations
+     initial-prob
      transition-prob
-     observation-prob
-     initial-prob])
+     observation-prob])
 
 ;; HMM has no docstring, but the functions it generates do.
 ;; attach some more descriptive text to those functions
@@ -24,9 +24,9 @@
   (HMM.
     states
     observations
+    (stats/random-stochastic-map states)
     (stats/random-row-stochastic-map states states)
-    (stats/random-row-stochastic-map states observations)
-    (stats/random-stochastic-map states)))
+    (stats/random-row-stochastic-map states observations)))
 
 (defn forward-probability-initial
   "Returns `α_1(i)`, for all states `i`.
@@ -476,9 +476,9 @@
         new-model (HMM.
                     (:states model)
                     (:observations model)
+                    new-initial-probs
                     new-transition-probs
-                    new-observation-probs
-                    new-initial-probs)
+                    new-observation-probs)
 
         new-likelihood (likelihood-forward new-model observations)]
     (if (> (- new-likelihood likelihood)

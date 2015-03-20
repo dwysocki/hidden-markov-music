@@ -8,6 +8,10 @@
 
         [:good :bad :so-so]
 
+        {:sunny  (/ 3.0),
+         :cloudy (/ 3.0),
+         :rainy  (/ 3.0)}
+
         {:sunny  {:sunny  0.5,
                   :cloudy 0.3,
                   :rainy  0.2},
@@ -26,11 +30,7 @@
                   :so-so 0.5},
          :rainy  {:good  0.1,
                   :bad   0.6,
-                  :so-so 0.3}}
-
-        {:sunny  (/ 3.0)
-         :cloudy (/ 3.0),
-         :rainy  (/ 3.0)}))
+                  :so-so 0.3}}))
 
 (def ibe-ex-11-observations
   [:good :good :so-so :bad :bad])
@@ -47,6 +47,10 @@
   (HMM. [:A :B :C]
 
         [:a :b :c]
+
+        {:A 1.0,
+         :B 0.0,
+         :C 0.0}
 
         {:A {:A 0.0,
              :B 1.0,
@@ -66,11 +70,7 @@
              :c 0.0},
          :C {:a 0.0,
              :b 0.0,
-             :c 1.0}}
-
-        {:A 1.0,
-         :B 0.0,
-         :C 0.0}))
+             :c 1.0}}))
 
 (def deterministic-certain-observations
   [:a :b :c :a :b :c])
@@ -87,6 +87,9 @@
 
         [:a :b]
 
+        {:A 0.5,
+         :B 0.5}
+
         {:A {:A 0.0,
              :B 1.0},
          :B {:A 1.0,
@@ -95,10 +98,7 @@
         {:A {:a 1.0,
              :b 0.0},
          :B {:a 0.0,
-             :b 1.0}}
-
-        {:A 0.5,
-         :B 0.5}))
+             :b 1.0}}))
 
 (def a-50-50-observations
   [:a :b :a :b :a :b])
