@@ -163,19 +163,19 @@
 (defmethod forward-probability-next LogHMM
   [model obs log-alpha-prev]
   ;; map each state to its α
-  (map-for [state (:states model)]
+  (map-for [state-j (:states model)]
            ;; compute α_t for the given state
            (let [log-alpha
-                 (reduce (fn [log-alpha [log-alpha-prev-i log-a-i]]
+                 (reduce (fn [log-alpha state-i]
                            (log-sum log-alpha
-                                    (+ log-alpha-prev-i
-                                       (get-in log-a-i [state]))))
+                                    (+ (get-in log-alpha-prev [state-i])
+                                       (get-in model [:transition-prob
+                                                      state-i
+                                                      state-j]))))
                          Double/NEGATIVE_INFINITY
-                         (map vector
-                              (vals log-alpha-prev)
-                              (vals (:transition-prob model))))]
+                         (:states model))]
              (+ log-alpha
-                (get-in model [:observation-prob state obs])))))
+                (get-in model [:observation-prob state-j obs])))))
 
 (defn- forward-probability-helper
   "Helper function for computing lazy seq of `α`'s.
@@ -264,6 +264,8 @@
                         (beta-next other-state)
                         (get-in model
                                 [:observation-prob other-state obs]))))))
+
+
 
 (defmulti ^:private backward-probability-helper
   "Helper function for computing lazy seq of `β`'s.
