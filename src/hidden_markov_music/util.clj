@@ -55,3 +55,40 @@
                     (list 'for [symbol a-seq] r)))
             body-expr
             binding-pairs)))
+
+(defn map-vals
+  "Maps a function `f` over the values of the map `m`, returning a new map."
+  [f m]
+  (zipmap (keys m)
+          (map f (vals m))))
+
+(defn numbers-almost-equal?
+  "Returns true if two numbers are equal to the given decimal place"
+  [x y & {:keys [decimal] :or {decimal 6}}]
+  (< (Math/abs (- x y))
+     (* 0.5
+        (Math/pow 10 (- decimal)))))
+
+(defn maps-almost-equal?
+  "Returns true if two numeric (potentially nested) maps are equal to the given
+  decimal place."
+  [x y & {:keys [decimal] :or {decimal 6}}]
+  (cond
+    ;; x and y are maps
+    ;; check that their keys are equal, and that all their values are
+    ;; almost equal
+    (every? map? [x y])
+    (and (= (keys x)
+            (keys y))
+         (every? identity
+                 (map #(maps-almost-equal? %1 %2
+                                           :decimal decimal)
+                      (vals x)
+                      (vals y))))
+    ;; x and y are numbers
+    ;; check that they are almost equal
+    (every? number? [x y])
+    (numbers-almost-equal? x y
+                           :decimal decimal)
+    ;; none of the cases were true, so the maps must not be almost equal
+    :else false)  )

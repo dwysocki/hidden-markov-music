@@ -1,4 +1,5 @@
 (ns hidden-markov-music.test-models
+  (:require [hidden-markov-music.hmm :as hmm])
   (:import [hidden_markov_music.hmm HMM]))
 
 ;; HMM taken from Example 11 in Oliver Ibe's
@@ -31,6 +32,9 @@
          :rainy  {:good  0.1,
                   :bad   0.6,
                   :so-so 0.3}}))
+
+(def ibe-ex-11-log-model
+  (hmm/HMM->LogHMM ibe-ex-11-model))
 
 (def ibe-ex-11-observations
   [:good :good :so-so :bad :bad])
@@ -72,6 +76,9 @@
              :b 0.0,
              :c 1.0}}))
 
+(def deterministic-log-model
+  (hmm/HMM->LogHMM deterministic-model))
+
 (def deterministic-certain-observations
   [:a :b :c :a :b :c])
 
@@ -99,6 +106,9 @@
              :b 0.0},
          :B {:a 0.0,
              :b 1.0}}))
+
+(def *50-50-log-model
+  (hmm/HMM->LogHMM *50-50-model))
 
 (def a-50-50-observations
   [:a :b :a :b :a :b])

@@ -10,7 +10,7 @@
   (:gen-class))
 
 (def random-weather-model
-  (hmm/random-hmm [:rainy :sunny]
+  (hmm/random-HMM [:rainy :sunny]
                   [:run :clean :shop]))
 
 (def song-states

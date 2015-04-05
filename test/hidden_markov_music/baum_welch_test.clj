@@ -5,6 +5,6 @@
         clojure.pprint))
 
 (testing "Baum-Welch algorithm"
-  (pprint (hmm/train-model tm/ibe-ex-11-model
-                           tm/ibe-ex-11-observations
-                           0.0001)))
+  (hmm/train-model tm/ibe-ex-11-model
+                   [:good :good :so-so :bad :bad :good :bad :so-so]
+                   0.0001))
