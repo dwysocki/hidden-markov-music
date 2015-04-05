@@ -9,3 +9,9 @@
     (= log-y Double/NEGATIVE_INFINITY) log-x
     :else (let [[min max] (sort [log-x log-y])]
             (+ max (log (inc (exp (- min max))))))))
+
+(defn log-product [log-x log-y]
+  (if (some (partial = Double/NEGATIVE_INFINITY)
+            [log-x log-y])
+    Double/NEGATIVE_INFINITY
+    (+ log-x log-y)))

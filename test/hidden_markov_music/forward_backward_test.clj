@@ -86,3 +86,30 @@
       (is (= (hmm/likelihood-backward tm/*50-50-model
                                       tm/impossible-50-50-observations)
              0.0)))))
+
+(deftest log-backward-algorithm-test
+  (testing "logarithmic backward algorithm"
+    (testing "with Oliver Ibe's Example 11"
+      (is (<= (log 0.0035)
+              (hmm/likelihood-backward tm/ibe-ex-11-log-model
+                                       tm/ibe-ex-11-observations)
+              (log 0.0037))))
+
+    (testing "with deterministic model"
+      (is (= (hmm/likelihood-backward tm/deterministic-log-model
+                                      tm/deterministic-certain-observations)
+             (log 1.0)))
+      (is (= (hmm/likelihood-backward tm/deterministic-log-model
+                                      tm/deterministic-impossible-observations)
+             (log 0.0))))
+
+    (testing "with 50-50 model"
+      (is (= (hmm/likelihood-backward tm/*50-50-log-model
+                                      tm/a-50-50-observations)
+             (log 0.5)))
+      (is (= (hmm/likelihood-backward tm/*50-50-log-model
+                                      tm/b-50-50-observations)
+             (log 0.5)))
+      (is (= (hmm/likelihood-backward tm/*50-50-log-model
+                                      tm/impossible-50-50-observations)
+             (log 0.0))))))

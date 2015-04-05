@@ -1,6 +1,6 @@
 (ns hidden-markov-music.hmm
   "General implementation of a hidden Markov model, and associated algorithms."
-  (:require [hidden-markov-music.math :refer [exp log log-sum]]
+  (:require [hidden-markov-music.math :refer [exp log log-sum log-product]]
             [hidden-markov-music.stats :as  stats]
             [hidden-markov-music.random :refer [select-random-key]]
             [hidden-markov-music.util :refer [map-for map-vals
@@ -234,6 +234,20 @@
     (reduce log-sum (vals alpha-final))))
 
 
+(defmulti backward-probability-final
+  "Returns `β_T(i)`, for all states `i`."
+  model-class)
+
+(defmethod backward-probability-final HMM
+  [model]
+  (zipmap (:states model)
+          (repeat 1.0)))
+
+(defmethod backward-probability-final LogHMM
+  [model]
+  (zipmap (:states model)
+          (repeat 0.0)))
+
 (defmulti backward-probability-prev
   "Returns `β_t(i)`, for all states `i`, for `t < T`.
 
@@ -265,16 +279,30 @@
                         (get-in model
                                 [:observation-prob other-state obs]))))))
 
+(defmethod backward-probability-prev LogHMM
+  [model obs log-beta-next]
+  ;; map each state to its β
+  (map-for [state-i (:states model)]
+           ;; compute β_t for the given state
+           (reduce (fn [log-beta state-j]
+                     (log-sum
+                       log-beta
+                       (log-product (get-in model [:transition-prob
+                                                   state-i state-j])
+                                    (log-product (get-in model
+                                                         [:observation-prob
+                                                          state-j obs])
+                                                 (get-in log-beta-next
+                                                         [state-j])))))
+                   Double/NEGATIVE_INFINITY
+                   (:states model))))
 
 
-(defmulti ^:private backward-probability-helper
+(defn- backward-probability-helper
   "Helper function for computing lazy seq of `β`'s.
 
   Computes the current `β`, based on the next `β`, and returns a lazy sequence
   with the current `β` at its head."
-  model-class)
-
-(defmethod backward-probability-helper HMM
   [model observations beta-next]
   ;; return nil when no observations remain
   (when-let [observations (seq observations)]
@@ -288,17 +316,13 @@
                                                    (rest observations)
                                                    beta-current))))))
 
-(defmulti backward-probability-seq
+(defn backward-probability-seq
   "Returns a lazy seq of `β_T(i), β_{T-1}(i), ..., β_1(i)`, where `β_t(i)` is
   the probability of observing `o_{t+1}, ..., o_T`, given that the system is in
   state `s_i` at time `t`."
-  model-class)
-
-(defmethod backward-probability-seq HMM
   [model observations]
   (let [;; β_T(i) for all states i is 1.0
-        beta-final (zipmap (:states model)
-                           (repeat 1.0))]
+        beta-final (backward-probability-final model)]
     ;; construct the lazy seq of β's, with β_T(i) at the head
     (cons beta-final
           (lazy-seq (backward-probability-helper model
@@ -323,6 +347,19 @@
     ;; P[O|λ] = β_1(1)*α_1(1) + ... + β_1(N)*α_1(N)
     (reduce + (vals (merge-with * beta-initial
                                   alpha-initial)))))
+
+(defmethod likelihood-backward LogHMM
+  [model observations]
+  (let [;; construct the lazy seq of β's
+        betas (backward-probability-seq model observations)
+        ;; pull out the initial β, β_1(i)
+        beta-initial (last betas)
+        ;; compute α_1(i)
+        alpha-initial (forward-probability-initial model
+                                                   (first observations))]
+    ;; P[O|λ] = β_1(1)*α_1(1) + ... + β_1(N)*α_1(N)
+    (reduce log-sum (vals (merge-with log-product beta-initial
+                                                  alpha-initial)))))
 
 (defmulti state-path-initial
   "Returns `ψ_1(i)` and `δ_1(i)`, for the given model `λ` and first observation
