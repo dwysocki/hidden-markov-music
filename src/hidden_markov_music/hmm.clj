@@ -285,15 +285,13 @@
   (map-for [state-i (:states model)]
            ;; compute β_t for the given state
            (reduce (fn [log-beta state-j]
-                     (log-sum
-                       log-beta
-                       (log-product (get-in model [:transition-prob
-                                                   state-i state-j])
-                                    (log-product (get-in model
-                                                         [:observation-prob
-                                                          state-j obs])
-                                                 (get-in log-beta-next
-                                                         [state-j])))))
+                     (log-sum log-beta
+                              (+ (get-in model [:transition-prob
+                                                state-i state-j])
+                                 (get-in model [:observation-prob
+                                                state-j obs])
+                                 (get-in log-beta-next
+                                         [state-j]))))
                    Double/NEGATIVE_INFINITY
                    (:states model))))
 
@@ -383,7 +381,73 @@
    ;; initial state has no preceding states, so ψ_1(i) = nil
    :psi nil})
 
-(defmulti state-path-next
+(defmethod state-path-initial LogHMM
+  [model obs]
+  {:delta
+   (map-for [state (:states model)]
+            ;; δ_1(i) = π(i)*b_i(o_1)
+            (+ (get-in model [:initial-prob state])
+               (get-in model [:observation-prob state obs]))),
+   ;; initial state has no preceding states, so ψ_1(i) = nil
+   :psi nil})
+
+(defmulti weighted-deltas
+  "Returns a mapping of `state-j -> state-i -> δ_{t-1}(i) p_{ij}`."
+  model-class)
+
+(defmethod weighted-deltas HMM
+  [model delta-prev]
+  (map-for [state-i (:states model)
+            state-j (:states model)]
+           (* (get delta-prev state-j)
+              (get-in model [:transition-prob
+                             state-j state-i]))))
+
+(defmethod weighted-deltas LogHMM
+  [model log-delta-prev]
+  (map-for [state-i (:states model)
+            state-j (:states model)]
+           (+ (get log-delta-prev state-j)
+              (get-in model [:transition-prob
+                             state-j state-i]))))
+
+(defmulti deltas
+  "Returns a mapping of `state-j -> max(δ_{t-1}(i) p_{ij})*b_j(o_t)`."
+  model-class)
+
+(defmethod deltas HMM
+  [model max-entries obs]
+  (zipmap (keys max-entries)
+          (for [[state [other-state weighted-delta]] max-entries]
+            (* weighted-delta
+               (get-in model [:observation-prob state obs])))))
+
+(defmethod deltas LogHMM
+  [model max-entries obs]
+  (zipmap (keys max-entries)
+          (for [[state [other-state weighted-delta]] max-entries]
+            (+ weighted-delta
+               (get-in model [:observation-prob state obs])))))
+
+(defn psis
+  "Returns a mapping of `state-j -> argmax(δ_{t-1}(i) p_{ij})`."
+  [max-entries]
+  (zipmap (keys max-entries)
+          (for [[state [other-state weighted-delta]] max-entries]
+            other-state)))
+
+(defn max-entries
+  "Returns a mapping of
+  ```
+  state-j -> [argmax(δ_{t-1}(i) p_{ij}),
+                 max(δ_{t-1}(i) p_{ij})]
+  ```"
+  [weighted-deltas]
+  (zipmap (keys weighted-deltas)
+          (for [[state entries] weighted-deltas]
+            (apply max-key val entries))))
+
+(defn state-path-next
   "Returns `ψ_t(i)` and `δ_t(i)`, for the given model `λ` and current
   observation `o_t`. Depends on the previous `δ_{t-1}(i)`.
 
@@ -393,47 +457,17 @@
   {:delta δ_t(i),
    :psi   ψ_t(i)}
   ```"
-  model-class)
-
-(defmethod state-path-next HMM
   [model obs delta-prev]
-  (let [;; this is a mapping of
-        ;; state-j -> state-i -> δ_{t-1}(i) p_{ij}
-        weighted-deltas
-        (map-for [state       (:states model)
-                  other-state (:states model)]
-                 (* (get delta-prev other-state)
-                    (get-in model [:transition-prob
-                                   other-state state])))
-        ;; this is a mapping of
-        ;; state-j -> [argmax(δ_{t-1}(i) p_{ij}),
-        ;;                max(δ_{t-1}(i) p_{ij})]
-        max-entries
-        (zipmap (keys weighted-deltas)
-                (for [[state entries] weighted-deltas]
-                  (apply max-key val entries)))]
-    {;; this is a mapping of
-     ;; state-j -> max(δ_{t-1}(i) p_{ij})*b_j(o_t)
-     :delta
-     (zipmap (keys max-entries)
-             (for [[state [other-state weighted-delta]] max-entries]
-               (* weighted-delta
-                  (get-in model [:observation-prob state obs])))),
-     ;; this is a mapping of
-     ;; state-j -> argmax(δ_{t-1}(i) p_{ij})
-     :psi
-     (zipmap (keys max-entries)
-             (for [[state [other-state weighted-delta]] max-entries]
-               other-state))}))
+  (let [weighted-deltas (weighted-deltas model delta-prev)
+        max-entries     (max-entries weighted-deltas)]
+    {:delta (deltas model max-entries obs),
+     :psi   (psis max-entries)}))
 
-(defmulti ^:private state-path-helper
+(defn- state-path-helper
   "Helper function for computing lazy seq of `ψ`'s and `δ`'s.
 
   Computes the current `ψ` and `δ`, based on the previous `δ`, and returns a
   lazy sequence with the current `ψ` and `δ` at its head."
-  model-class)
-
-(defmethod state-path-helper HMM
   [model observations delta-prev]
   (when-let [observations (seq observations)]
     (let [delta-psi-next (state-path-next model
@@ -444,15 +478,12 @@
                                          (rest observations)
                                          (:delta delta-psi-next)))))))
 
-(defmulti state-path-seq
+(defn state-path-seq
   "Returns a lazy seq of previous states paired with their probabilities,
   `[ψ_1(i) δ_1(i)], ... [ψ_T(i) δ_T(i)]`,
   where `ψ_t(i)` is a mapping from state `i` to the state `j` which most likely
   preceded it, and `δ_t(i)` is a mapping from state `i` to the probability of
   the most likely state path leading up to it from state `j`."
-  model-class)
-
-(defmethod state-path-seq HMM
   [model observations]
   (let [delta-psi-initial (state-path-initial model
                                               (first observations))]
@@ -476,7 +507,7 @@
             (lazy-seq (viterbi-backtrack (rest psis)
                                          state-current))))))
 
-(defmulti viterbi-path
+(defn viterbi-path
   "Returns one of the state sequences `Q` which maximizes `P[Q|O,λ]`, along
   with the likelihood itself, `P[Q|O,λ]`. There are potentially many such
   paths, all with equal likelihood, and one of those is chosen arbitrarily.
@@ -491,9 +522,6 @@
   {:likelihood     P[Q|O,λ],
    :state-sequence Q}
   ```"
-  model-class)
-
-(defmethod viterbi-path HMM
   [model observations]
   (let [;; compute a lazy seq of [ψ_1(i) δ_1(i)], ... [ψ_T(i) δ_T(i)]
         delta-psis (state-path-seq model observations)
@@ -518,6 +546,189 @@
 
 
 
+
+
+
+(defmulti gamma
+  "Returns the probability of being in state `i` at time `t` given the model
+  and observation sequence."
+  model-class)
+
+(defmethod gamma HMM
+  [model forward-prob backward-prob]
+  (map-for [state (:states model)]
+           (/ (* (forward-prob  state)
+                 (backward-prob state))
+              (reduce +
+                      (for [other-state (:states model)]
+                        (* (backward-prob other-state)
+                           (forward-prob  other-state)))))))
+
+(defmethod gamma LogHMM
+  [model log-forward-prob log-backward-prob]
+  (let [[normalizer partial-log-gammas]
+        (reduce (fn [[normalizer partial-log-gammas] state]
+                  (let [partial-log-gamma (+ (get log-forward-prob  state)
+                                             (get log-backward-prob state))
+                        normalizer        (log-sum normalizer
+                                                   partial-log-gamma)]
+                    [normalizer (assoc partial-log-gammas
+                                  state partial-log-gamma)]))
+                [Double/NEGATIVE_INFINITY {}]
+                (:states model))]
+    (map-for [state (:states model)]
+             (- (get partial-log-gammas state)
+                normalizer))))
+
+(defn gamma-seq
+  "Returns a lazy sequence of gammas from `t = 1` to `t = T`.
+
+  See [[gamma]]."
+  [model forward-probs backward-probs]
+  (map (partial gamma model)
+       forward-probs
+       backward-probs))
+
+(defmulti digamma
+  "Returns the probability of being in state `i` at time `t` and state `j` at
+  time `t+1` given the model and observation sequence."
+  model-class)
+
+(defmethod digamma HMM
+  [model forward-prob backward-prob-next observation-next]
+  (let [likelihood
+        (->> (for [state-i (:states model)
+                   state-j (:states model)]
+               (* (forward-prob state-i)
+                  (get-in model [:transition-prob
+                                 state-i
+                                 state-j])
+                  (get-in model [:observation-prob
+                                 state-j
+                                 observation-next])
+                  (backward-prob-next state-j)))
+             flatten
+             (reduce +))]
+    (map-for [state-current (:states model)
+              state-next    (:states model)]
+             (/ (* (forward-prob state-current)
+                   (get-in model [:transition-prob
+                                  state-current
+                                  state-next])
+                   (get-in model [:observation-prob
+                                  state-next
+                                  observation-next])
+                   (backward-prob-next state-next))
+                likelihood))))
+
+(defmethod digamma LogHMM
+  [model log-forward-prob log-backward-prob-next obs-next]
+  (let [partial-log-digammas
+        (map-for [state-i (:states model)
+                  state-j (:states model)]
+                 (+ (get log-forward-prob state-i)
+                    (get log-backward-prob-next state-j[])
+                    (get-in model [:transition-prob state-i state-j])
+                    (get-in model [:observation-prob state-j obs-next])))
+
+        normalizer
+        (reduce log-sum
+                Double/NEGATIVE_INFINITY
+                (flatten (map vals (vals partial-log-digammas))))]
+    (map-for [state-i (:states model)
+              state-j (:states model)]
+             (- (get-in partial-log-digammas [state-i state-j])
+                normalizer))))
+
+(defn digamma-seq
+  "Returns a lazy sequence of digammas from `t = 1` to `t = T-1`.
+
+  See [[digamma]]."
+  [model forward-probs backward-probs observations]
+  (map (partial digamma model)
+       forward-probs
+       (rest backward-probs)
+       (rest observations)))
+
+(defn- train-initial-probs
+  [gammas]
+  (first gammas))
+
+(defmulti ^:private train-transition-probs
+  "Returns an updated transition probability matrix given the gammas and
+  digammas computed for the model."
+  model-class)
+
+(defmethod train-transition-probs HMM
+  [model gammas digammas]
+  (map-for [state-current (:states model)]
+           (let [expected-transitions
+                 (->> gammas
+                      butlast
+                      (map #(get % state-current))
+                      (reduce +))]
+             (map-for [state-next (:states model)]
+                      (/ (->> digammas
+                              (map #(get-in % [state-current state-next]))
+                              (reduce +))
+                         expected-transitions)))))
+
+(defmulti ^:private train-observation-probs
+  "Returns an updated observation probability matrix given the gammas computed
+  for the model, and the observation sequence."
+  model-class)
+
+(defmethod train-observation-probs HMM
+  [model gammas observations]
+  (map-for [state-current (:states model)]
+           (let [expected-transitions (->> gammas
+                                           (map #(get % state-current))
+                                           (reduce +))]
+             (map-for [obs (:observations model)]
+                      (->> (map vector gammas observations)
+                           (filter (fn [[g o]] (= o obs)))
+                           (map (fn [[g o]] (g state-current)))
+                           (reduce +))))))
+
+(defmulti ^:private train-model-helper
+  ""
+  model-class)
+
+(defmethod train-model-helper HMM
+  [model observations threshold likelihood]
+  (let [alphas   (forward-probability-seq  model observations)
+        betas    (reverse (backward-probability-seq model observations))
+        gammas   (gamma-seq model alphas betas)
+        digammas (digamma-seq model alphas betas observations)
+
+        new-initial-probs     (train-initial-probs gammas)
+        new-transition-probs  (train-transition-probs  model gammas digammas)
+        new-observation-probs (train-observation-probs model gammas
+                                                       observations)
+        new-model (HMM.
+                    (:states model)
+                    (:observations model)
+                    new-initial-probs
+                    new-transition-probs
+                    new-observation-probs)
+
+        new-likelihood (likelihood-forward new-model observations)]
+    (if (> (- new-likelihood likelihood)
+           threshold)
+      (recur new-model observations threshold new-likelihood)
+      new-model)))
+
+(defmethod train-model-helper LogHMM
+  [model observations threshold likelihood]
+  )
+
+(defn train-model
+  "Trains the model via the Baum-Welch algorithm."
+  ([model observations]
+     (train-model model observations 0.0))
+  ([model observations threshold]
+     (train-model-helper model observations threshold
+                         (likelihood-forward model observations))))
 
 
 
@@ -581,119 +792,3 @@
   ([model states]
      (sample-emissions (LogHMM->HMM model)
                        states)))
-
-(defn gamma
-  ""
-  [model forward-prob backward-prob]
-  (map-for [state (:states model)]
-           (/ (* (forward-prob  state)
-                 (backward-prob state))
-              (reduce +
-                      (for [other-state (:states model)]
-                        (* (backward-prob other-state)
-                           (forward-prob  other-state)))))))
-
-(defn gamma-seq
-  ""
-  [model forward-probs backward-probs]
-  (map (partial gamma model)
-       forward-probs
-       backward-probs))
-
-
-(defn digamma
-  [model forward-prob backward-prob-next observation-next]
-  (let [likelihood
-        (->> (for [state-i (:states model)
-                   state-j (:states model)]
-               (* (forward-prob state-i)
-                  (get-in model [:transition-prob
-                                 state-i
-                                 state-j])
-                  (get-in model [:observation-prob
-                                 state-j
-                                 observation-next])
-                  (backward-prob-next state-j)))
-             flatten
-             (reduce +))]
-    (map-for [state-current (:states model)
-              state-next    (:states model)]
-             (/ (* (forward-prob state-current)
-                   (get-in model [:transition-prob
-                                  state-current
-                                  state-next])
-                   (get-in model [:observation-prob
-                                  state-next
-                                  observation-next])
-                   (backward-prob-next state-next))
-                likelihood))))
-
-(defn digamma-seq
-  [model forward-probs backward-probs observations]
-  (map (partial digamma model)
-       forward-probs
-       (rest backward-probs)
-       (rest observations)))
-
-(defn- train-initial-probs
-  [gammas]
-  (first gammas))
-
-(defn- train-transition-probs
-  [model gammas digammas]
-  (map-for [state-current (:states model)]
-           (let [expected-transitions
-                 (->> gammas
-                      butlast
-                      (map #(get % state-current))
-                      (reduce +))]
-             (map-for [state-next (:states model)]
-                      (/ (->> digammas
-                              (map #(get-in % [state-current state-next]))
-                              (reduce +))
-                         expected-transitions)))))
-
-(defn- train-observation-probs
-  [model gammas observations]
-  (map-for [state-current (:states model)]
-           (let [expected-transitions (->> gammas
-                                           (map #(get % state-current))
-                                           (reduce +))]
-             (map-for [obs (:observations model)]
-                      (->> (map vector gammas observations)
-                           (filter (fn [[g o]] (= o obs)))
-                           (map (fn [[g o]] (g state-current)))
-                           (reduce +))))))
-
-(defn- train-model-helper
-  [model observations threshold likelihood]
-  (let [alphas   (forward-probability-seq  model observations)
-        betas    (reverse (backward-probability-seq model observations))
-        gammas   (gamma-seq model alphas betas)
-        digammas (digamma-seq model alphas betas observations)
-
-        new-initial-probs     (train-initial-probs gammas)
-        new-transition-probs  (train-transition-probs  model gammas digammas)
-        new-observation-probs (train-observation-probs model gammas
-                                                       observations)
-        new-model (HMM.
-                    (:states model)
-                    (:observations model)
-                    new-initial-probs
-                    new-transition-probs
-                    new-observation-probs)
-
-        new-likelihood (likelihood-forward new-model observations)]
-    (if (> (- new-likelihood likelihood)
-           threshold)
-      (recur new-model observations threshold new-likelihood)
-      new-model)))
-
-(defn train-model
-  "Trains the model via the Baum-Welch algorithm."
-  ([model observations]
-     (train-model model observations 0.0))
-  ([model observations threshold]
-     (train-model-helper model observations threshold
-                         (likelihood-forward model observations))))
-
