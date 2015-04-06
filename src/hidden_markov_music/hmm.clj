@@ -745,7 +745,8 @@
                        observations))]
       (- numerator denominator))))
 
-(defn train-model-seq
+(defn train-model-next
+  "Returns an infinite lazy sequence of trained models"
   [model observations]
   (let [alphas   (forward-probability-seq  model observations)
         betas    (reverse (backward-probability-seq model observations))
@@ -755,13 +756,25 @@
         new-initial-probs     (train-initial-probs gammas)
         new-transition-probs  (train-transition-probs  model gammas digammas)
         new-observation-probs (train-observation-probs model gammas
-                                                       observations)
-        new-model (assoc model
-                    :initial-prob     new-initial-probs
-                    :transition-prob  new-transition-probs
-                    :observation-prob new-observation-probs)]
-    (cons new-model
-          (lazy-seq (train-model-seq new-model observations)))))
+                                                       observations)]
+    (assoc model
+      :initial-prob     new-initial-probs
+      :transition-prob  new-transition-probs
+      :observation-prob new-observation-probs)))
+
+(defn train-model-seq
+  [model observations]
+  (iterate (fn [model-prev]
+             (train-model-next model-prev
+                               observations))
+           model))
+
+(defn train-model-likelihood-seq
+  [model observations]
+  (map (fn [m]
+         [m (likelihood-forward m observations)])
+       (train-model-seq model
+                        observations)))
 
 (defn train-model
   "Trains the model via the Baum-Welch algorithm."
@@ -769,16 +782,10 @@
                           :or   {decimal 15 max-iter 100}}]
      (let [;; generate the infinite lazy seq of trained models,
            ;; and take the maximum number of them
-           trained-models
-           (take max-iter
-                 (cons model
-                       (train-model-seq model
-                                        observations)))
-           ;; associate with each trained model its likelihood
            trained-model-likelihoods
-           (map (fn [model]
-                  [model (likelihood-forward model observations)])
-                trained-models)
+           (take max-iter
+                 (train-model-likelihood-seq model
+                                             observations))
            ;; create a sliding window of pairs of trained-models
            trained-model-likelihood-pairs
            (partition 2 1 trained-model-likelihoods)]

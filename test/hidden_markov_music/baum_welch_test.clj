@@ -1,5 +1,6 @@
 (ns hidden-markov-music.baum-welch-test
   (:require [hidden-markov-music.hmm         :as hmm]
+            [hidden-markov-music.plots       :as plots]
             [hidden-markov-music.test-models :as tm])
   (:use clojure.test
         clojure.pprint))
@@ -12,6 +13,9 @@
                             [:good :good :so-so :bad :bad :good :bad :so-so]
                             :decimal 5))))
    (testing "with Emilio Frazzoli's Baum-Welch example"
+     (plots/training-likelihood tm/frazzoli-ex-log-model
+                                tm/frazzoli-ex-observations
+                                20)
      (is (hmm/hmms-almost-equal?
            tm/frazzoli-ex-trained-model
            (hmm/LogHMM->HMM

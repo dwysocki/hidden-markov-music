@@ -1,4 +1,4 @@
-(defproject hidden-markov-music "0.1.3"
+(defproject hidden-markov-music "0.1.4-SNAPSHOT"
   :description "Generate original musical scores by means of a hidden Markov
                 model."
   :url "https://github.com/dwysocki/hidden-markov-music"
@@ -9,5 +9,6 @@
           :src-linenum-anchor-prefix "L"
           :defaults {:doc/format :markdown}}
   :dependencies [[org.clojure/clojure   "1.6.0"]
-                 [org.clojure/tools.cli "0.3.1"]]
+                 [org.clojure/tools.cli "0.3.1"]
+                 [incanter              "1.5.5"]]
   :main hidden-markov-music.core)
