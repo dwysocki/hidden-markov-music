@@ -4,7 +4,16 @@
   (:use clojure.test
         clojure.pprint))
 
-(testing "Baum-Welch algorithm"
-  (hmm/train-model tm/ibe-ex-11-model
-                   [:good :good :so-so :bad :bad :good :bad :so-so]
-                   0.0001))
+(deftest log-baum-welch-algorithm-test
+  (testing "logarithmic Baum-Welch algorithm"
+   (testing "with Oliver Ibe's Example 11"
+     (is (hmm/valid-hmm?
+           (hmm/train-model tm/ibe-ex-11-log-model
+                            [:good :good :so-so :bad :bad :good :bad :so-so]
+                            0.00001))))
+   (testing "with Emilio Frazzoli's Baum-Welch example"
+     (pprint
+      (hmm/LogHMM->HMM
+       (hmm/train-model tm/frazzoli-ex-log-model
+                        tm/frazzoli-ex-observations
+                        0.0001))))))

@@ -43,6 +43,78 @@
   #{[:sunny :sunny :sunny  :rainy :rainy]
     [:sunny :sunny :cloudy :rainy :rainy]})
 
+
+;; models taken from Larry Moss' Baum-Welch examples
+(def moss-ex-1-model
+  (HMM. [:s :t]
+
+        [:A :B]
+
+        {:s 0.85,
+         :t 0.15}
+
+        {:s {:s 0.3,
+             :t 0.7},
+         :t {:s 0.1,
+             :t 0.9}},
+
+        {:s {:A 0.4,
+             :B 0.6},
+         :t {:A 0.5,
+             :B 0.5}}))
+
+(def moss-ex-1-log-model
+  (hmm/HMM->LogHMM moss-ex-1-model))
+
+
+;; model taken from Emilio Frazzoli's Baum-Welch example
+(def frazzoli-ex-model
+  (HMM. [:LA :NY]
+
+        [:LA :NY :null]
+
+        {:LA 0.5,
+         :NY 0.5}
+
+        {:LA {:LA 0.5,
+              :NY 0.5},
+         :NY {:LA 0.5,
+              :NY 0.5}}
+
+        {:LA {:LA   0.4,
+              :NY   0.1,
+              :null 0.5},
+         :NY {:LA   0.1,
+              :NY   0.5,
+              :null 0.4}}))
+
+(def frazzoli-ex-log-model
+  (hmm/HMM->LogHMM frazzoli-ex-model))
+
+(def frazzoli-ex-observations
+  [:null :LA   :LA   :null :NY   :null :NY   :NY   :NY   :null
+   :NY   :NY   :NY   :NY   :NY   :null :null :LA   :LA   :NY  ])
+
+(def frazzoli-ex-trained-model
+  (HMM. [:LA :NY]
+
+        [:LA :NY :null]
+
+        {:LA 1.0,
+         :NY 0.0}
+
+        {:LA {:LA 0.6909
+              :NY 0.3091},
+         :NY {:LA 0.0934
+              :NY 0.9066}}
+
+        {:LA {:LA   0.5807
+              :NY   0.0010
+              :null 0.4183},
+         :NY {:LA   0.0000
+              :NY   0.7621
+              :null 0.2379}}))
+
 ;; fully deterministic HMM, whose states must be
 ;; :A -> :B -> :C -> :A -> ...
 ;; and whose emissions must be

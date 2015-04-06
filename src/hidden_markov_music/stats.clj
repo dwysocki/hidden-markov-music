@@ -1,6 +1,8 @@
 (ns hidden-markov-music.stats
   "General statistical functions."
-  (:require [hidden-markov-music.util :refer [map-for]]))
+  (:require [hidden-markov-music.math :refer [log exp log-sum]]
+            [hidden-markov-music.util :refer [map-for
+                                              numbers-almost-equal?]]))
 
 (defn normalize
   "Normalizes a sequence."
@@ -43,3 +45,31 @@
     (map-for [r row-keys]
              (let [col-probs (random-stochastic-vector n-cols)]
                (zipmap col-keys col-probs)))))
+
+(defn stochastic-map?
+  "Returns true if the map is stochastic to the given precision."
+  [m & {:keys [decimal] :or {decimal 10}}]
+  (numbers-almost-equal? (reduce + (vals m))
+                         1.0
+                         :decimal decimal))
+
+(defn log-stochastic-map?
+  "Returns true if the map is logarithmically stochastic to the given
+  precision."
+  [m & {:keys [decimal] :or {decimal 10}}]
+  (numbers-almost-equal? (reduce log-sum (vals m))
+                         0.0
+                         :decimal decimal))
+
+(defn row-stochastic-map?
+  "Returns true if the map is row stochastic to the given precision."
+  [m & {:keys [decimal] :or {decimal 10}}]
+  (every? #(stochastic-map? % :decimal decimal)
+          (vals m)))
+
+(defn log-row-stochastic-map?
+  "Returns true if the map is logarithmically stochastic to the given
+  precision."
+  [m & {:keys [decimal] :or {decimal 10}}]
+  (every? #(log-stochastic-map? % :decimal decimal)
+          (vals m)))

@@ -55,7 +55,7 @@
     (map-vals (partial map-vals exp) (:observation-prob model))))
 
 (defmulti hmms-almost-equal?
-  "Returns true if two HMMs are equal to the given precision"
+  "Returns true if two HMMs are equal to the given precision."
   (fn [x y & {:keys [decimal] :or {decimal 6}}]
     [(class x) (class y)]))
 
@@ -82,6 +82,29 @@
 (defmethod hmms-almost-equal? :default
   [x y & args]
   false)
+
+(defmulti valid-hmm?
+  "Returns true if the HMM has all stochastic probabilities to the given
+  precision."
+  model-class)
+
+(defmethod valid-hmm? HMM
+  [model & {:keys [decimal] :or {decimal 10}}]
+  (and (stats/stochastic-map?     (:initial-prob     model)
+                                  :decimal decimal)
+       (stats/row-stochastic-map? (:transition-prob  model)
+                                  :decimal decimal)
+       (stats/row-stochastic-map? (:observation-prob model)
+                                  :decimal decimal)))
+
+(defmethod valid-hmm? LogHMM
+  [model & {:keys [decimal] :or {decimal 10}}]
+  (and (stats/log-stochastic-map?     (:initial-prob     model)
+                                      :decimal decimal)
+       (stats/log-row-stochastic-map? (:transition-prob  model)
+                                      :decimal decimal)
+       (stats/log-row-stochastic-map? (:observation-prob model)
+                                      :decimal decimal)))
 
 (defn random-HMM
   "Returns an HMM with random probabilities, given the state and observation
@@ -662,16 +685,29 @@
 (defmethod train-transition-probs HMM
   [model gammas digammas]
   (map-for [state-current (:states model)]
-           (let [expected-transitions
-                 (->> gammas
-                      butlast
-                      (map #(get % state-current))
-                      (reduce +))]
-             (map-for [state-next (:states model)]
-                      (/ (->> digammas
-                              (map #(get-in % [state-current state-next]))
-                              (reduce +))
-                         expected-transitions)))))
+    (let [expected-transitions
+          (->> gammas
+               butlast
+               (map #(get % state-current))
+               (reduce +))]
+      (map-for [state-next (:states model)]
+        (/ (->> digammas
+                (map #(get-in % [state-current state-next]))
+                (reduce +))
+           expected-transitions)))))
+
+(defmethod train-transition-probs LogHMM
+  [model gammas digammas]
+  (map-for [state-i (:states model)
+            state-j (:states model)]
+    (let [[numerator denominator]
+          (reduce (fn [[num denom] [gamma digamma]]
+                    [(log-sum num   (get-in digamma [state-i state-j])),
+                     (log-sum denom (get gamma state-i))])
+                  [Double/NEGATIVE_INFINITY Double/NEGATIVE_INFINITY]
+                  (map vector
+                       gammas digammas))]
+      (- numerator denominator))))
 
 (defmulti ^:private train-observation-probs
   "Returns an updated observation probability matrix given the gammas computed
@@ -690,11 +726,25 @@
                            (map (fn [[g o]] (g state-current)))
                            (reduce +))))))
 
-(defmulti ^:private train-model-helper
-  ""
-  model-class)
+(defmethod train-observation-probs LogHMM
+  [model gammas observations]
+  (map-for [state (:states       model)
+            obs   (:observations model)]
+    (let [[numerator denominator]
+          (reduce (fn [[num denom] [gamma o]]
+                    [;; update numerator if observation at time t is obs
+                     (if (= obs o)
+                       (log-sum num (get gamma state))
+                       num)
+                     ;; update denominator
+                     (log-sum denom (get gamma state))])
+                  [Double/NEGATIVE_INFINITY Double/NEGATIVE_INFINITY]
+                  (map vector
+                       gammas
+                       observations))]
+      (- numerator denominator))))
 
-(defmethod train-model-helper HMM
+(defn train-model-helper
   [model observations threshold likelihood]
   (let [alphas   (forward-probability-seq  model observations)
         betas    (reverse (backward-probability-seq model observations))
@@ -705,22 +755,15 @@
         new-transition-probs  (train-transition-probs  model gammas digammas)
         new-observation-probs (train-observation-probs model gammas
                                                        observations)
-        new-model (HMM.
-                    (:states model)
-                    (:observations model)
-                    new-initial-probs
-                    new-transition-probs
-                    new-observation-probs)
-
+        new-model (assoc model
+                    :initial-prob     new-initial-probs
+                    :transition-prob  new-transition-probs
+                    :observation-prob new-observation-probs)
         new-likelihood (likelihood-forward new-model observations)]
     (if (> (- new-likelihood likelihood)
            threshold)
       (recur new-model observations threshold new-likelihood)
       new-model)))
-
-(defmethod train-model-helper LogHMM
-  [model observations threshold likelihood]
-  )
 
 (defn train-model
   "Trains the model via the Baum-Welch algorithm."
