@@ -11,4 +11,4 @@
   :dependencies [[org.clojure/clojure   "1.6.0"]
                  [org.clojure/tools.cli "0.3.1"]
                  [incanter              "1.5.5"]]
-  :main hidden-markov-music.core)
+  :main model-testing.repeated-baum-welch)
