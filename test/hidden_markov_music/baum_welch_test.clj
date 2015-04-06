@@ -10,10 +10,12 @@
      (is (hmm/valid-hmm?
            (hmm/train-model tm/ibe-ex-11-log-model
                             [:good :good :so-so :bad :bad :good :bad :so-so]
-                            0.00001))))
+                            :decimal 5))))
    (testing "with Emilio Frazzoli's Baum-Welch example"
-     (pprint
-      (hmm/LogHMM->HMM
-       (hmm/train-model tm/frazzoli-ex-log-model
-                        tm/frazzoli-ex-observations
-                        0.0001))))))
+     (is (hmm/hmms-almost-equal?
+           tm/frazzoli-ex-trained-model
+           (hmm/LogHMM->HMM
+             (hmm/train-model tm/frazzoli-ex-log-model
+                              tm/frazzoli-ex-observations
+                              :max-iter 20))
+           :decimal 3)))))
