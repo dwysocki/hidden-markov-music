@@ -19,7 +19,8 @@
       (incant/save "training-likelihood.png" :width 400 :height 300))))
 
 (defn training-likelihood-multiple
-  [model multiple-observations iterations repetitions]
+  [model multiple-observations iterations repetitions &
+   {:keys [scaling] :or {scaling identity}}]
   (let [;; count the number of observation sequences
         n-observations
         (count multiple-observations)
@@ -45,14 +46,15 @@
         (into {}
               (for [[name obs] multiple-observations]
                 [name (map (fn [model]
-                             (hmm/likelihood-forward model obs))
+                             (scaling (hmm/likelihood-forward model obs)))
                            trained-models)]))
         plot (doto (charts/xy-plot)
                (charts/set-x-label "Iteration")
-               (charts/set-y-label "P[O|λ]")
+               (charts/set-y-label "Likelihood")
                (charts/set-title   "Baum-Welch Training Multiple"))]
     (doseq [[name likelihood] likelihoods]
       (charts/add-lines plot
                         iterations likelihood
                         :series-label name))
+    (println likelihoods)
     plot))

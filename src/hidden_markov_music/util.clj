@@ -1,4 +1,5 @@
-(ns hidden-markov-music.util)
+(ns hidden-markov-music.util
+  (:require [clojure.string :as string]))
 
 (defmacro assert-args
   "Takes any number of `[boolean message]` pairs, and raises an exception with
@@ -13,6 +14,17 @@
        ~(let [more (nnext pairs)]
           (when more
             (list* `assert-args more)))))
+
+(defn error-msg [errors]
+  (str "The following errors occurred while parsing your command:\n\n"
+       (string/join \newline errors)))
+
+(defn exit [status msg]
+  (println msg)
+  (System/exit status))
+
+(defn parse-int [x]
+  (Integer/parseInt x))
 
 (defmacro map-for
   "Map comprehension. Takes a vector of one or more

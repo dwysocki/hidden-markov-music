@@ -9,7 +9,7 @@
    :B [:LA   :null :NY   :LA   :null :null :NY   :NY   :null :null],
    :C [:LA   :LA   :NY   :NY   :NY   :null :null :NY   :LA   :LA  ]})
 
-(deftest training-multiple-observations
+#_(deftest training-multiple-observations
   (testing "Frazzoli's model with 3 observation sequences and 2 repetitions"
     (plots/training-likelihood-multiple tm/frazzoli-ex-log-model
                                         multiple-observations
