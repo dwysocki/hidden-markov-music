@@ -34,7 +34,7 @@
     "Number of iterations for each training step."
     :default 20
     :parse-fn util/parse-int
-    :validate [#(<= 1 % 100) "Must be a number between 1 and 1 hundred."]]
+    :validate [#(<= 1 % 1000000) "Must be a number between 1 and 1 million."]]
    [nil "--state-labels NUM_STATE_LABEL"
     "Number of hidden states in the model."
     :default 2
@@ -52,15 +52,13 @@
     :validate [#(<= 1 % 1000000) "Must be a number between 1 and 1 million."]]
    ["-h" "--help"]])
 
-(defn usage [options-summary]
-  (->> ["Produces a plot of the likelihood of a number of observation"
-        "sequences over time."
-        ""
-        "Usage: hidden-markov-music repeated-baum-welch [options]"
-        ""
-        "Options:"
-        options-summary]
-       (string/join \newline)))
+(def usage
+  (util/usage-descriptor
+    (->> ["Produces a plot of the likelihood of a number of observation"
+          "sequences over time."
+          ""
+          "Usage: hidden-markov-music repeated-baum-welch [options]"]
+      (string/join \newline))))
 
 (defn random-observations
   [length labels]

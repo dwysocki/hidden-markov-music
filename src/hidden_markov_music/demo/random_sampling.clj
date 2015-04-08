@@ -56,14 +56,12 @@
   {"weather" random-weather-model,
    "song"    song-model})
 
-(defn usage [options-summary]
-  (->> ["Produces random emissions and states from walking an HMM."
-        ""
-        "Usage: hidden-markov-music random-sampling [options]"
-        ""
-        "Options:"
-        options-summary]
-       (string/join \newline)))
+(def usage
+  (util/usage-descriptor
+    (->> ["Produces random emissions and states from walking an HMM."
+          ""
+          "Usage: hidden-markov-music random-sampling [options]"]
+      (string/join \newline))))
 
 (def cli-options
   [["-m" "--model MODEL" "Name of the model"

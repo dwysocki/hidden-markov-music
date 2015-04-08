@@ -111,7 +111,7 @@
      (usage-descriptor description []))
   ([description arguments]
      (fn [options-summary]
-       (str "Usage: " description "\n"
+       (str description
             "\n"
             "Options:\n"
             options-summary

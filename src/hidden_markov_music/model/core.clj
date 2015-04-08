@@ -13,7 +13,7 @@
              "Sample from a model"]})
 
 (def description
-  "hidden-markov-music model [<options>] <argument> [<args>]")
+  "Usage: hidden-markov-music model [<options>] <argument> [<args>]")
 
 (def main
   (util/subcommand-parser description
