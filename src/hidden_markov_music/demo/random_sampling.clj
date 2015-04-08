@@ -1,4 +1,4 @@
-(ns hidden-markov-music.model-demos.random-sampling
+(ns hidden-markov-music.demo.random-sampling
   (:require [clojure.pprint :refer [pprint]]
             [hidden-markov-music.hmm :as hmm]
             [hidden-markov-music.stats :as stats]

@@ -1,4 +1,4 @@
-(ns ^:no-doc hidden-markov-music.model-demos.repeated-baum-welch
+(ns ^:no-doc hidden-markov-music.demo.repeated-baum-welch
   (:require [hidden-markov-music.hmm   :as hmm]
             [hidden-markov-music.math  :refer [exp log]]
             [hidden-markov-music.plots :as plots]

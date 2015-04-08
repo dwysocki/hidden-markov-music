@@ -1,5 +1,6 @@
 (ns hidden-markov-music.util
-  (:require [clojure.string :as string]))
+  (:require [clojure.tools.cli :refer [parse-opts]]
+            [clojure.string :as string]))
 
 (defmacro assert-args
   "Takes any number of `[boolean message]` pairs, and raises an exception with
@@ -103,4 +104,51 @@
     (numbers-almost-equal? x y
                            :decimal decimal)
     ;; none of the cases were true, so the maps must not be almost equal
-    :else false)  )
+    :else false))
+
+(defn usage-descriptor
+  ([description]
+     (usage-descriptor description []))
+  ([description arguments]
+     (fn [options-summary]
+       (str "Usage: " description "\n"
+            "\n"
+            "Options:\n"
+            options-summary
+            (if (seq arguments)
+              (str "\n"
+                   "\n"
+                   "Arguments:\n"
+                   (string/join \newline
+                                (map (fn [[arg [_ description]]]
+                                       (format "    %-20s%s"
+                                               arg description))
+                                     arguments)))
+              "")))))
+
+(def cli-options-help
+  [["-h" "--help"]])
+
+(defn subcommand-parser
+  [description cli-options cli-arguments]
+  (fn [args]
+    (let [{:keys [options arguments summary errors]}
+          (parse-opts args cli-options
+                      :in-order true)
+          usage (usage-descriptor description
+                                  cli-arguments)]
+      (cond
+       (:help options)
+       (exit 0 (usage summary))
+
+       (not (pos? (count arguments)))
+       (exit 1 (usage summary))
+
+       errors
+       (exit 1 (error-msg errors)))
+
+      (if-let [sub-command (get cli-arguments
+                                (first arguments))]
+        (let [[command-fn description] sub-command]
+          (command-fn (rest arguments)))
+        (exit 1 (usage summary))))))
