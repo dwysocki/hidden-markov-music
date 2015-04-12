@@ -20,10 +20,12 @@
 (def cli-options
   [["-i" "--max-iter N"
     "Maximum number of Baum-Welch training iterations"
+    :default 100
     :parse-fn util/parse-int
     :validate [#(< 0 % 0x100000) "Must be an integer between 0 and 65536"]]
    ["-d" "--decimal N"
     "Number of decimal places to measure convergence to"
+    :default 10
     :parse-fn util/parse-int
     :validate [#(< 0 % 0x100000) "Must be an integer between 0 and 65536"]]
    ["-h" "--help"]])

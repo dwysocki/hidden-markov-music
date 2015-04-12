@@ -4,8 +4,7 @@
             [hidden-markov-music.stats :as stats]
             [hidden-markov-music.util  :as util]
             [clojure.tools.cli :refer [parse-opts]]
-            [clojure.string :as string])
-  (:import [hidden_markov_music.hmm HMM]))
+            [clojure.string :as string]))
 
 (def random-weather-model
   (hmm/random-HMM [:rainy :sunny]
@@ -18,39 +17,40 @@
   [:A :B :C :D :E :F :G])
 
 (def song-model
-  (HMM. song-states
-        song-notes
-        {:beginning 1.0,
-         :middle    0.0,
-         :chorus    0.0,
-         :finale    0.0,
-         :end       0.0}
-        {:beginning {:beginning 0.8,
-                     :middle    0.2,
-                     :chorus    0.0,
-                     :finale    0.0,
-                     :end       0.0},
-         :middle    {:beginning 0.0,
-                     :middle    0.5,
-                     :chorus    0.4,
-                     :finale    0.1,
-                     :end       0.0},
-         :chorus    {:beginning 0.0,
-                     :middle    0.2,
-                     :chorus    0.8,
-                     :finale    0.0,
-                     :end       0.0}
-         :finale    {:beginning 0.0,
-                     :middle    0.0,
-                     :chorus    0.0,
-                     :finale    0.8,
-                     :end       0.2}
-         :end       {:beginning 0.0,
-                     :middle    0.0,
-                     :chorus    0.0,
-                     :finale    0.0,
-                     :end       1.0}}
-        (stats/random-row-stochastic-map song-states song-notes)))
+  {:type :HMM,
+   :states song-states,
+   :observations song-notes,
+   :initial-prob {:beginning 1.0,
+                  :middle    0.0,
+                  :chorus    0.0,
+                  :finale    0.0,
+                  :end       0.0},
+   :transition-prob {:beginning {:beginning 0.8,
+                                 :middle    0.2,
+                                 :chorus    0.0,
+                                 :finale    0.0,
+                                 :end       0.0},
+                     :middle    {:beginning 0.0,
+                                 :middle    0.5,
+                                 :chorus    0.4,
+                                 :finale    0.1,
+                                 :end       0.0},
+                     :chorus    {:beginning 0.0,
+                                 :middle    0.2,
+                                 :chorus    0.8,
+                                 :finale    0.0,
+                                 :end       0.0}
+                     :finale    {:beginning 0.0,
+                                 :middle    0.0,
+                                 :chorus    0.0,
+                                 :finale    0.8,
+                                 :end       0.2}
+                     :end       {:beginning 0.0,
+                                 :middle    0.0,
+                                 :chorus    0.0,
+                                 :finale    0.0,
+                                 :end       1.0}},
+   :observation-prob (stats/random-row-stochastic-map song-states song-notes)})
 
 (def models
   {"weather" random-weather-model,

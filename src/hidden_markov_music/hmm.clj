@@ -1,72 +1,43 @@
 (ns hidden-markov-music.hmm
   "General implementation of a hidden Markov model, and associated algorithms."
   (:require [hidden-markov-music.math :refer [exp log log-sum log-product]]
-            [hidden-markov-music.stats :as  stats]
+            [hidden-markov-music.stats :as stats]
             [hidden-markov-music.random :refer [select-random-key]]
             [hidden-markov-music.util :refer [map-for map-vals
                                               numbers-almost-equal?
                                               maps-almost-equal?]]
-            [miner.tagged :as tag])
+            [clojure.edn :as edn])
   (:use clojure.pprint))
 
-(defn- model-class [model & args]
-  (class model))
-
-(defrecord HMM
-    [states
-     observations
-     initial-prob
-     transition-prob
-     observation-prob])
-
-(defrecord LogHMM
-    [states
-     observations
-     initial-prob
-     transition-prob
-     observation-prob])
-
-(defmethod print-method HMM
-  [this w]
-  (tag/pr-tagged-record-on this w))
-
-(defmethod print-method LogHMM
-  [this w]
-  (tag/pr-tagged-record-on this w))
-
-;; HMM and LogHMM have no docstrings, but the functions they generate do.
-;; Attach some more descriptive text to those functions' docstrings
-(doseq [f [#'->HMM #'map->HMM]]
-  (alter-meta! f update-in [:doc] str
-    "\nConstructs a representation of a hidden Markov model."))
-(doseq [f [#'->LogHMM #'map->LogHMM]]
-  (alter-meta! f update-in [:doc] str
-    "\nConstructs a logarithmic representation of a hidden Markov model."))
+(defn- model-type [model & args]
+  (:type model))
 
 (defn HMM->LogHMM
   "Transforms an HMM into a logarithmic HMM."
   [model]
-  (LogHMM.
-    (:states model)
-    (:observations model)
-    (map-vals log (:initial-prob model))
-    (map-vals (partial map-vals log) (:transition-prob model))
-    (map-vals (partial map-vals log) (:observation-prob model))))
+  (assoc model
+    :type :LogHMM
+    :initial-prob (map-vals log (:initial-prob model))
+    :transition-prob (map-vals (partial map-vals log)
+                               (:transition-prob model))
+    :observation-prob (map-vals (partial map-vals log)
+                                (:observation-prob model))))
 
 (defn LogHMM->HMM
   "Transforms a logarithmic HMM into an HMM."
   [model]
-  (HMM.
-    (:states model)
-    (:observations model)
-    (map-vals exp (:initial-prob model))
-    (map-vals (partial map-vals exp) (:transition-prob model))
-    (map-vals (partial map-vals exp) (:observation-prob model))))
+  (assoc model
+    :type :HMM
+    :initial-prob (map-vals exp (:initial-prob model))
+    :transition-prob (map-vals (partial map-vals exp)
+                               (:transition-prob model))
+    :observation-prob (map-vals (partial map-vals exp)
+                                (:observation-prob model))))
 
 (defmulti hmms-almost-equal?
   "Returns true if two HMMs are equal to the given precision."
   (fn [x y & {:keys [decimal] :or {decimal 6}}]
-    [(class x) (class y)]))
+    [(:type x) (:type y)]))
 
 (defn- hmms-almost-equal-helper
   [x y decimal]
@@ -80,11 +51,11 @@
                            (:observation-prob y)
                            :decimal decimal)))
 
-(defmethod hmms-almost-equal? [HMM HMM]
+(defmethod hmms-almost-equal? [:HMM :HMM]
   [x y & {:keys [decimal] :or {decimal 6}}]
   (hmms-almost-equal-helper x y decimal))
 
-(defmethod hmms-almost-equal? [LogHMM LogHMM]
+(defmethod hmms-almost-equal? [:LogHMM :LogHMM]
   [x y & {:keys [decimal] :or {decimal 6}}]
   (hmms-almost-equal-helper x y decimal))
 
@@ -95,13 +66,13 @@
 (defmulti valid-hmm?
   "Returns true if the HMM has all stochastic probabilities to the given
   precision."
-  model-class)
+  model-type)
 
 (defmethod valid-hmm? :default
   [model & args]
   nil)
 
-(defmethod valid-hmm? HMM
+(defmethod valid-hmm? :HMM
   [model & {:keys [decimal] :or {decimal 10}}]
   (and (stats/stochastic-map?     (:initial-prob     model)
                                   :decimal decimal)
@@ -110,7 +81,7 @@
        (stats/row-stochastic-map? (:observation-prob model)
                                   :decimal decimal)))
 
-(defmethod valid-hmm? LogHMM
+(defmethod valid-hmm? :LogHMM
   [model & {:keys [decimal] :or {decimal 10}}]
   (and (stats/log-stochastic-map?     (:initial-prob     model)
                                       :decimal decimal)
@@ -123,12 +94,12 @@
   "Returns an HMM with random probabilities, given the state and observation
   labels."
   [states observations]
-  (HMM.
-    states
-    observations
-    (stats/random-stochastic-map states)
-    (stats/random-row-stochastic-map states states)
-    (stats/random-row-stochastic-map states observations)))
+  {:type :HMM,
+   :states states,
+   :observations observations,
+   :initial-prob (stats/random-stochastic-map states),
+   :transition-prob (stats/random-row-stochastic-map states states),
+   :observation-prob (stats/random-row-stochastic-map states observations)})
 
 (defn random-LogHMM
   "Returns a logarithmic HMM with random probabilities, given the state and
@@ -140,12 +111,8 @@
   "Reads an HMM or LogHMM from an EDN stream, and throws an exception if not
   a valid model."
   [stream]
-  (let [model (tag/read stream)]
-    (println "TYPE:" (class model))
-    (println "MODEL:")
-    (pr model)
-    (println)
-    (if (valid-hmm? model :decimal 2)
+  (let [model (edn/read stream)]
+    (if (valid-hmm? model :decimal 10)
       model
       (throw (ex-info "Invalid model" {:type :invalid-model})))))
 
@@ -163,9 +130,9 @@
    ...
    :state-N α_1(N)}
   ```"
-  model-class)
+  model-type)
 
-(defmethod forward-probability-initial HMM
+(defmethod forward-probability-initial :HMM
   [model obs]
   ;; map each state to its initial α
   (map-for [state (:states model)]
@@ -173,7 +140,7 @@
            (* (get-in model [:initial-prob     state])
               (get-in model [:observation-prob state obs]))))
 
-(defmethod forward-probability-initial LogHMM
+(defmethod forward-probability-initial :LogHMM
   [model obs]
   ;; map each state to its initial log α
   (map-for [state (:states model)]
@@ -195,9 +162,9 @@
    ...
    s_N α_t(N)}
   ```"
-  model-class)
+  model-type)
 
-(defmethod forward-probability-next HMM
+(defmethod forward-probability-next :HMM
   [model obs alpha-prev]
   ;; map each state to its α
   (map-for [state (:states model)]
@@ -208,7 +175,7 @@
                         (* (get-in model [:transition-prob other-state state])
                            (alpha-prev other-state)))))))
 
-(defmethod forward-probability-next LogHMM
+(defmethod forward-probability-next :LogHMM
   [model obs log-alpha-prev]
   ;; map each state to its α
   (map-for [state-j (:states model)]
@@ -261,9 +228,9 @@
   "Returns `P[O|λ]`, using the forward algorithm.
 
   This is the likelihood of the observed sequence `O` given the model `λ`."
-  model-class)
+  model-type)
 
-(defmethod likelihood-forward HMM
+(defmethod likelihood-forward :HMM
   [model observations]
   (let [;; construct the lazy seq of α's
         alphas (forward-probability-seq model observations)
@@ -272,7 +239,7 @@
     ;; return the sum over i of α_T(i), which gives P[O|λ]
     (reduce + (vals alpha-final))))
 
-(defmethod likelihood-forward LogHMM
+(defmethod likelihood-forward :LogHMM
   [model observations]
   (let [;; construct the lazy seq of α's
         alphas (forward-probability-seq model observations)
@@ -284,14 +251,14 @@
 
 (defmulti backward-probability-final
   "Returns `β_T(i)`, for all states `i`."
-  model-class)
+  model-type)
 
-(defmethod backward-probability-final HMM
+(defmethod backward-probability-final :HMM
   [model]
   (zipmap (:states model)
           (repeat 1.0)))
 
-(defmethod backward-probability-final LogHMM
+(defmethod backward-probability-final :LogHMM
   [model]
   (zipmap (:states model)
           (repeat 0.0)))
@@ -311,10 +278,10 @@
    ...
    :state-N β_t(N)}
   ```"
-  model-class)
+  model-type)
 
 
-(defmethod backward-probability-prev HMM
+(defmethod backward-probability-prev :HMM
   [model obs beta-next]
   ;; map each state to its β
   (map-for [state (:states model)]
@@ -327,7 +294,7 @@
                         (get-in model
                                 [:observation-prob other-state obs]))))))
 
-(defmethod backward-probability-prev LogHMM
+(defmethod backward-probability-prev :LogHMM
   [model obs log-beta-next]
   ;; map each state to its β
   (map-for [state-i (:states model)]
@@ -379,9 +346,9 @@
   "Returns `P[O|λ]`, using the backward algorithm.
 
   This is the likelihood of the observed sequence `O` given the model `λ`."
-  model-class)
+  model-type)
 
-(defmethod likelihood-backward HMM
+(defmethod likelihood-backward :HMM
   [model observations]
   (let [;; construct the lazy seq of β's
         betas (backward-probability-seq model observations)
@@ -394,7 +361,7 @@
     (reduce + (vals (merge-with * beta-initial
                                   alpha-initial)))))
 
-(defmethod likelihood-backward LogHMM
+(defmethod likelihood-backward :LogHMM
   [model observations]
   (let [;; construct the lazy seq of β's
         betas (backward-probability-seq model observations)
@@ -417,9 +384,9 @@
   {:delta δ_1(i),
    :psi   ψ_1(i)}
   ```"
-  model-class)
+  model-type)
 
-(defmethod state-path-initial HMM
+(defmethod state-path-initial :HMM
   [model obs]
   {:delta
    (map-for [state (:states model)]
@@ -429,7 +396,7 @@
    ;; initial state has no preceding states, so ψ_1(i) = nil
    :psi nil})
 
-(defmethod state-path-initial LogHMM
+(defmethod state-path-initial :LogHMM
   [model obs]
   {:delta
    (map-for [state (:states model)]
@@ -441,9 +408,9 @@
 
 (defmulti weighted-deltas
   "Returns a mapping of `state-j -> state-i -> δ_{t-1}(i) p_{ij}`."
-  model-class)
+  model-type)
 
-(defmethod weighted-deltas HMM
+(defmethod weighted-deltas :HMM
   [model delta-prev]
   (map-for [state-i (:states model)
             state-j (:states model)]
@@ -451,7 +418,7 @@
               (get-in model [:transition-prob
                              state-j state-i]))))
 
-(defmethod weighted-deltas LogHMM
+(defmethod weighted-deltas :LogHMM
   [model log-delta-prev]
   (map-for [state-i (:states model)
             state-j (:states model)]
@@ -461,16 +428,16 @@
 
 (defmulti deltas
   "Returns a mapping of `state-j -> max(δ_{t-1}(i) p_{ij})*b_j(o_t)`."
-  model-class)
+  model-type)
 
-(defmethod deltas HMM
+(defmethod deltas :HMM
   [model max-entries obs]
   (zipmap (keys max-entries)
           (for [[state [other-state weighted-delta]] max-entries]
             (* weighted-delta
                (get-in model [:observation-prob state obs])))))
 
-(defmethod deltas LogHMM
+(defmethod deltas :LogHMM
   [model max-entries obs]
   (zipmap (keys max-entries)
           (for [[state [other-state weighted-delta]] max-entries]
@@ -600,9 +567,9 @@
 (defmulti gamma
   "Returns the probability of being in state `i` at time `t` given the model
   and observation sequence."
-  model-class)
+  model-type)
 
-(defmethod gamma HMM
+(defmethod gamma :HMM
   [model forward-prob backward-prob]
   (map-for [state (:states model)]
            (/ (* (forward-prob  state)
@@ -612,7 +579,7 @@
                         (* (backward-prob other-state)
                            (forward-prob  other-state)))))))
 
-(defmethod gamma LogHMM
+(defmethod gamma :LogHMM
   [model log-forward-prob log-backward-prob]
   (let [[normalizer partial-log-gammas]
         (reduce (fn [[normalizer partial-log-gammas] state]
@@ -640,9 +607,9 @@
 (defmulti digamma
   "Returns the probability of being in state `i` at time `t` and state `j` at
   time `t+1` given the model and observation sequence."
-  model-class)
+  model-type)
 
-(defmethod digamma HMM
+(defmethod digamma :HMM
   [model forward-prob backward-prob-next observation-next]
   (let [likelihood
         (->> (for [state-i (:states model)
@@ -669,7 +636,7 @@
                    (backward-prob-next state-next))
                 likelihood))))
 
-(defmethod digamma LogHMM
+(defmethod digamma :LogHMM
   [model log-forward-prob log-backward-prob-next obs-next]
   (let [partial-log-digammas
         (map-for [state-i (:states model)
@@ -705,9 +672,9 @@
 (defmulti ^:private train-transition-probs
   "Returns an updated transition probability matrix given the gammas and
   digammas computed for the model."
-  model-class)
+  model-type)
 
-(defmethod train-transition-probs HMM
+(defmethod train-transition-probs :HMM
   [model gammas digammas]
   (map-for [state-current (:states model)]
     (let [expected-transitions
@@ -721,7 +688,7 @@
                 (reduce +))
            expected-transitions)))))
 
-(defmethod train-transition-probs LogHMM
+(defmethod train-transition-probs :LogHMM
   [model gammas digammas]
   (map-for [state-i (:states model)
             state-j (:states model)]
@@ -737,9 +704,9 @@
 (defmulti ^:private train-observation-probs
   "Returns an updated observation probability matrix given the gammas computed
   for the model, and the observation sequence."
-  model-class)
+  model-type)
 
-(defmethod train-observation-probs HMM
+(defmethod train-observation-probs :HMM
   [model gammas observations]
   (map-for [state-current (:states model)]
            (let [expected-transitions (->> gammas
@@ -751,7 +718,7 @@
                            (map (fn [[g o]] (g state-current)))
                            (reduce +))))))
 
-(defmethod train-observation-probs LogHMM
+(defmethod train-observation-probs :LogHMM
   [model gammas observations]
   (map-for [state (:states       model)
             obs   (:observations model)]
@@ -858,14 +825,14 @@
 
   See [[random-initial-state]] and [[random-transition]] for details on the
   decisions made at each step."
-  model-class)
+  model-type)
 
-(defmethod sample-states HMM
+(defmethod sample-states :HMM
   [model]
   (iterate (partial random-transition model)
            (random-initial-state model)))
 
-(defmethod sample-states LogHMM
+(defmethod sample-states :LogHMM
   [model]
   (sample-states (LogHMM->HMM model)))
 
@@ -875,16 +842,16 @@
   states, and emissions will be made from it randomly.
 
   See [[sample-states]] and [[random-emission]] for details."
-  model-class)
+  model-type)
 
-(defmethod sample-emissions HMM
+(defmethod sample-emissions :HMM
   ([model]
      (sample-emissions model (sample-states model)))
   ([model states]
      (map (partial random-emission model)
           states)))
 
-(defmethod sample-emissions LogHMM
+(defmethod sample-emissions :LogHMM
   ([model]
      (sample-emissions (LogHMM->HMM model)))
   ([model states]

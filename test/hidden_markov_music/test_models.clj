@@ -1,37 +1,38 @@
 (ns hidden-markov-music.test-models
-  (:require [hidden-markov-music.hmm :as hmm])
-  (:import [hidden_markov_music.hmm HMM]))
+  (:require [hidden-markov-music.hmm :as hmm]))
 
 ;; HMM taken from Example 11 in Oliver Ibe's
 ;; "Markov Processes for Stochastic Modeling"
 (def ibe-ex-11-model
-  (HMM. [:sunny :cloudy :rainy]
+  {:type :HMM
 
-        [:good :bad :so-so]
+   :states [:sunny :cloudy :rainy]
 
-        {:sunny  (/ 3.0),
-         :cloudy (/ 3.0),
-         :rainy  (/ 3.0)}
+   :observations [:good :bad :so-so]
 
-        {:sunny  {:sunny  0.5,
-                  :cloudy 0.3,
-                  :rainy  0.2},
-         :cloudy {:sunny  0.4,
-                  :cloudy 0.4,
-                  :rainy  0.2},
-         :rainy  {:sunny  0.2,
-                  :cloudy 0.4,
-                  :rainy  0.4}}
+   :initial-prob {:sunny  (/ 3.0),
+                  :cloudy (/ 3.0),
+                  :rainy  (/ 3.0)}
 
-        {:sunny  {:good  0.6,
-                  :bad   0.1,
-                  :so-so 0.3},
-         :cloudy {:good  0.3,
-                  :bad   0.2,
-                  :so-so 0.5},
-         :rainy  {:good  0.1,
-                  :bad   0.6,
-                  :so-so 0.3}}))
+   :transition-prob {:sunny  {:sunny  0.5,
+                              :cloudy 0.3,
+                              :rainy  0.2},
+                     :cloudy {:sunny  0.4,
+                              :cloudy 0.4,
+                              :rainy  0.2},
+                     :rainy  {:sunny  0.2,
+                              :cloudy 0.4,
+                              :rainy  0.4}}
+
+   :observation-prob {:sunny  {:good  0.6,
+                               :bad   0.1,
+                               :so-so 0.3},
+                      :cloudy {:good  0.3,
+                               :bad   0.2,
+                               :so-so 0.5},
+                      :rainy  {:good  0.1,
+                               :bad   0.6,
+                               :so-so 0.3}}})
 
 (def ibe-ex-11-log-model
   (hmm/HMM->LogHMM ibe-ex-11-model))
@@ -46,22 +47,24 @@
 
 ;; models taken from Larry Moss' Baum-Welch examples
 (def moss-ex-1-model
-  (HMM. [:s :t]
+  {:type :HMM,
 
-        [:A :B]
+   :states [:s :t]
 
-        {:s 0.85,
-         :t 0.15}
+   :observations [:A :B]
 
-        {:s {:s 0.3,
-             :t 0.7},
-         :t {:s 0.1,
-             :t 0.9}},
+   :initial-prob {:s 0.85,
+                  :t 0.15}
 
-        {:s {:A 0.4,
-             :B 0.6},
-         :t {:A 0.5,
-             :B 0.5}}))
+   :transition-prob {:s {:s 0.3,
+                         :t 0.7},
+                     :t {:s 0.1,
+                         :t 0.9}}
+
+   :observation-prob {:s {:A 0.4,
+                          :B 0.6},
+                      :t {:A 0.5,
+                          :B 0.5}}})
 
 (def moss-ex-1-log-model
   (hmm/HMM->LogHMM moss-ex-1-model))
@@ -69,24 +72,26 @@
 
 ;; model taken from Emilio Frazzoli's Baum-Welch example
 (def frazzoli-ex-model
-  (HMM. [:LA :NY]
+  {:type :HMM
 
-        [:LA :NY :null]
+   :states [:LA :NY]
 
-        {:LA 0.5,
-         :NY 0.5}
+   :observations [:LA :NY :null]
 
-        {:LA {:LA 0.5,
-              :NY 0.5},
-         :NY {:LA 0.5,
-              :NY 0.5}}
+   :initial-prob {:LA 0.5,
+                  :NY 0.5}
 
-        {:LA {:LA   0.4,
-              :NY   0.1,
-              :null 0.5},
-         :NY {:LA   0.1,
-              :NY   0.5,
-              :null 0.4}}))
+   :transition-prob {:LA {:LA 0.5,
+                          :NY 0.5},
+                     :NY {:LA 0.5,
+                          :NY 0.5}}
+
+   :observation-prob {:LA {:LA   0.4,
+                           :NY   0.1,
+                           :null 0.5},
+                      :NY {:LA   0.1,
+                           :NY   0.5,
+                           :null 0.4}}})
 
 (def frazzoli-ex-log-model
   (hmm/HMM->LogHMM frazzoli-ex-model))
@@ -96,57 +101,61 @@
    :NY   :NY   :NY   :NY   :NY   :null :null :LA   :LA   :NY  ])
 
 (def frazzoli-ex-trained-model
-  (HMM. [:LA :NY]
+  {:type :HMM
 
-        [:LA :NY :null]
+   :states [:LA :NY]
 
-        {:LA 1.0,
-         :NY 0.0}
+   :observations [:LA :NY :null]
 
-        {:LA {:LA 0.6909
-              :NY 0.3091},
-         :NY {:LA 0.0934
-              :NY 0.9066}}
+   :initial-prob {:LA 1.0,
+                  :NY 0.0}
 
-        {:LA {:LA   0.5807
-              :NY   0.0010
-              :null 0.4183},
-         :NY {:LA   0.0000
-              :NY   0.7621
-              :null 0.2379}}))
+   :transition-prob {:LA {:LA 0.6909
+                          :NY 0.3091},
+                     :NY {:LA 0.0934
+                          :NY 0.9066}}
+
+   :observation-prob {:LA {:LA   0.5807
+                           :NY   0.0010
+                           :null 0.4183},
+                      :NY {:LA   0.0000
+                           :NY   0.7621
+                           :null 0.2379}}})
 
 ;; fully deterministic HMM, whose states must be
 ;; :A -> :B -> :C -> :A -> ...
 ;; and whose emissions must be
 ;; :a -> :b -> :c -> :a -> ...
 (def deterministic-model
-  (HMM. [:A :B :C]
+  {:type :HMM
 
-        [:a :b :c]
+   :states [:A :B :C]
 
-        {:A 1.0,
-         :B 0.0,
-         :C 0.0}
+   :observations [:a :b :c]
 
-        {:A {:A 0.0,
-             :B 1.0,
-             :C 0.0},
-         :B {:A 0.0,
-             :B 0.0,
-             :C 1.0},
-         :C {:A 1.0,
-             :B 0.0,
-             :C 0.0}}
+   :initial-prob {:A 1.0,
+                  :B 0.0,
+                  :C 0.0}
 
-        {:A {:a 1.0,
-             :b 0.0,
-             :c 0.0},
-         :B {:a 0.0,
-             :b 1.0,
-             :c 0.0},
-         :C {:a 0.0,
-             :b 0.0,
-             :c 1.0}}))
+   :transition-prob {:A {:A 0.0,
+                         :B 1.0,
+                         :C 0.0},
+                     :B {:A 0.0,
+                         :B 0.0,
+                         :C 1.0},
+                     :C {:A 1.0,
+                         :B 0.0,
+                         :C 0.0}}
+
+   :observation-prob {:A {:a 1.0,
+                          :b 0.0,
+                          :c 0.0},
+                      :B {:a 0.0,
+                          :b 1.0,
+                          :c 0.0},
+                      :C {:a 0.0,
+                          :b 0.0,
+                          :c 1.0}}})
 
 (def deterministic-log-model
   (hmm/HMM->LogHMM deterministic-model))
@@ -162,22 +171,24 @@
 
 ;; model which can begin in one of two states, but from there is deterministic
 (def *50-50-model
-  (HMM. [:A :B]
+  {:type :HMM
 
-        [:a :b]
+   :states [:A :B]
 
-        {:A 0.5,
-         :B 0.5}
+   :observations [:a :b]
 
-        {:A {:A 0.0,
-             :B 1.0},
-         :B {:A 1.0,
-             :B 0.0}}
+   :initial-prob {:A 0.5,
+                  :B 0.5}
 
-        {:A {:a 1.0,
-             :b 0.0},
-         :B {:a 0.0,
-             :b 1.0}}))
+   :transition-prob {:A {:A 0.0,
+                         :B 1.0},
+                     :B {:A 1.0,
+                         :B 0.0}}
+
+   :observation-prob {:A {:a 1.0,
+                          :b 0.0},
+                      :B {:a 0.0,
+                          :b 1.0}}})
 
 (def *50-50-log-model
   (hmm/HMM->LogHMM *50-50-model))

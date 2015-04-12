@@ -7,5 +7,5 @@
   Known formats:
     ..."
   [filename]
-  (with-open [stream (clojure.java.io/input-stream filename)]
-    (vec (line-seq stream))))
+  (with-open [rdr (clojure.java.io/reader filename)]
+    (doall (line-seq rdr))))

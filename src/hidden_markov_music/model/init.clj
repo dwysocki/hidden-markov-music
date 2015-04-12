@@ -2,7 +2,8 @@
   (:require [hidden-markov-music.hmm :as hmm]
             [hidden-markov-music.util :as util]
             [clojure.tools.cli :refer [parse-opts]]
-            [clojure.string :as string]))
+            [clojure.string :as string]
+            [miner.tagged :as tag]))
 
 (def usage
   (util/usage-descriptor
@@ -50,7 +51,6 @@
                     (util/exit 1 (str mode " is not a valid mode")))
           model (init-fn states (:alphabet options))]
       (if (hmm/valid-hmm? model)
-        (do
-          (pr model)
-          (println))
+        (do (pr (into {} model))
+            (println))
         (throw (ex-info "Invalid model trained" {:type :invalid-model}))))))
