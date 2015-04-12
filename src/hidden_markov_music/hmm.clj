@@ -5,7 +5,8 @@
             [hidden-markov-music.random :refer [select-random-key]]
             [hidden-markov-music.util :refer [map-for map-vals
                                               numbers-almost-equal?
-                                              maps-almost-equal?]])
+                                              maps-almost-equal?]]
+            [miner.tagged :as tag])
   (:use clojure.pprint))
 
 (defn- model-class [model & args]
@@ -25,6 +26,13 @@
      transition-prob
      observation-prob])
 
+(defmethod print-method HMM
+  [this w]
+  (tag/pr-tagged-record-on this w))
+
+(defmethod print-method LogHMM
+  [this w]
+  (tag/pr-tagged-record-on this w))
 
 ;; HMM and LogHMM have no docstrings, but the functions they generate do.
 ;; Attach some more descriptive text to those functions' docstrings
@@ -89,6 +97,10 @@
   precision."
   model-class)
 
+(defmethod valid-hmm? :default
+  [model & args]
+  nil)
+
 (defmethod valid-hmm? HMM
   [model & {:keys [decimal] :or {decimal 10}}]
   (and (stats/stochastic-map?     (:initial-prob     model)
@@ -124,6 +136,18 @@
   [states observations]
   (HMM->LogHMM (random-HMM states observations)))
 
+(defn stream->model
+  "Reads an HMM or LogHMM from an EDN stream, and throws an exception if not
+  a valid model."
+  [stream]
+  (let [model (tag/read stream)]
+    (println "TYPE:" (class model))
+    (println "MODEL:")
+    (pr model)
+    (println)
+    (if (valid-hmm? model :decimal 2)
+      model
+      (throw (ex-info "Invalid model" {:type :invalid-model})))))
 
 (defmulti forward-probability-initial
   "Returns `α_1(i)`, for all states `i`.

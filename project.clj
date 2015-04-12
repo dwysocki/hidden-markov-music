@@ -10,5 +10,6 @@
           :defaults {:doc/format :markdown}}
   :dependencies [[org.clojure/clojure   "1.6.0"]
                  [org.clojure/tools.cli "0.3.1"]
+                 [com.velisco/tagged    "0.3.7"]
                  [incanter              "1.5.5"]]
   :main hidden-markov-music.core)
