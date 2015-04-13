@@ -2,8 +2,7 @@
   (:require [hidden-markov-music.hmm :as hmm]
             [hidden-markov-music.util :as util]
             [clojure.tools.cli :refer [parse-opts]]
-            [clojure.string :as string]
-            [miner.tagged :as tag]))
+            [clojure.string :as string]))
 
 (def usage
   (util/usage-descriptor

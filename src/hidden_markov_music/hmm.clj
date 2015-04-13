@@ -6,7 +6,7 @@
             [hidden-markov-music.util :refer [map-for map-vals
                                               numbers-almost-equal?
                                               maps-almost-equal?]]
-            [clojure.edn :as edn])
+            [clojure.tools.reader :as edn])
   (:use clojure.pprint))
 
 (defn- model-type [model & args]
