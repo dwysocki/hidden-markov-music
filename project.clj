@@ -11,5 +11,6 @@
   :dependencies [[org.clojure/clojure      "1.6.0"]
                  [org.clojure/tools.cli    "0.3.1"]
                  [org.clojure/tools.reader "0.9.1"]
+                 [jfugue                   "4.0.3"]
                  [incanter                 "1.5.5"]]
   :main hidden-markov-music.core)

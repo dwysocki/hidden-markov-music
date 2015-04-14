@@ -6,23 +6,16 @@
 
 (def usage
   (util/usage-descriptor
-    (->> ["MAKE DESCRIPTION"
+    (->> ["Initialize a hidden Markov model with an alphabet read from stdin."
+          "Alphabet must contain one unique observation symbol per line."
+          "Mode may either be 'random' or 'uniform', and determines whether"
+          "the probabilities are initialized randomly or uniformly."
           ""
           "Usage: hidden-markov-music model init [<options>] <mode>"]
       (string/join \newline))))
 
 (def cli-options
-  [["-a" "--alphabet FILE"
-    "File containing a unique observation symbol on each line"
-    :parse-fn (fn [file-name]
-                (try
-                  (with-open [rdr (clojure.java.io/reader file-name)]
-                    (set (line-seq rdr)))
-                  (catch java.io.FileNotFoundException e
-                    (println "Alphabet file not found")
-                    nil)))
-    :validate [#(<= 2 (count %)) "Alphabet must contain at least 2 symbols"]]
-   ["-s" "--states N"
+  [["-s" "--states N"
     "Number of hidden states"
     :parse-fn util/parse-int
     :validate [#(< % 0x10000) "Must be an integer between 0 and 65536"]]
@@ -43,13 +36,21 @@
       errors
       (util/exit 1 (util/error-msg errors)))
 
-    (let [states (range (:states options))
-          mode   (first arguments)
-          init-fn (case mode
-                    "random" hmm/random-LogHMM
-                    (util/exit 1 (str mode " is not a valid mode")))
-          model (init-fn states (:alphabet options))]
-      (if (hmm/valid-hmm? model)
-        (do (pr (into {} model))
-            (println))
-        (throw (ex-info "Invalid model trained" {:type :invalid-model}))))))
+    (with-open [rdr (clojure.java.io/reader *in*)]
+      (let [alphabet (-> rdr
+                         ; create a seq out of the lines of the alphabet
+                         line-seq
+                         ; built a set from that seq
+                         set
+                         ; add nil to that set, which represents end-of-song
+                         (conj nil))
+            states (range (:states options))
+            mode   (first arguments)
+            init-fn (case mode
+                      "random" hmm/random-LogHMM
+                      (util/exit 1 (str mode " is not a valid mode")))
+            model (init-fn states alphabet)]
+        (if (hmm/valid-hmm? model)
+          (do (pr (into {} model))
+              (println))
+          (util/exit 1 "Invalid model trained"))))))

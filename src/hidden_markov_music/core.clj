@@ -4,12 +4,15 @@
   (:require [clojure.tools.cli :refer [parse-opts]]
             [clojure.string :as string]
             [hidden-markov-music.util :as util]
-            [hidden-markov-music.demo.core  :as demo]
-            [hidden-markov-music.model.core :as model])
+            [hidden-markov-music.alphabet :as alphabet]
+            [hidden-markov-music.model.core :as model]
+            [hidden-markov-music.demo.core  :as demo])
   (:gen-class))
 
 (def cli-arguments
-  {"model" [model/main
+  {"alphabet" [alphabet/main
+               "Create an alphabet"]
+   "model" [model/main
             "Perform an operation on a model"]
    "demo"  [demo/main
             "Various demonstrations"]})

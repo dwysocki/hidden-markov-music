@@ -2,6 +2,7 @@
   (:require [hidden-markov-music.hmm :as hmm]
             [hidden-markov-music.util :as util]
             [hidden-markov-music.music.music :as music]
+            [hidden-markov-music.music.jfugue :as jfugue]
             [clojure.tools.cli :refer [parse-opts]]
             [clojure.string :as string]))
 
@@ -28,6 +29,9 @@
     :default 10
     :parse-fn util/parse-int
     :validate [#(< 0 % 0x100000) "Must be an integer between 0 and 65536"]]
+   [nil "--simplify"
+    "Extract only the most simple information from the notes."
+    :default false]
    ["-h" "--help"]])
 
 (defn main
@@ -46,7 +50,11 @@
 
     (let [observation-filename (first arguments)
           model (hmm/stream->model *in*)
-          observations (music/parse-filename observation-filename)]
+          observations (music/parse-filename-input observation-filename)
+          observations (if (:simplify options)
+                         (map jfugue/simplify observations)
+                         observations)
+          observations (lazy-cat observations [nil])]
       (pr (hmm/train-model model observations
                            :decimal  (:decimal  options)
                            :max-iter (:max-iter options)))

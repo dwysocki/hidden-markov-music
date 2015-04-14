@@ -27,6 +27,13 @@
 (defn parse-int [x]
   (Integer/parseInt x))
 
+(defn file-extension
+  "Returns the extension for the given filename, or nil if there is none."
+  [file-name]
+  (let [split-name (clojure.string/split file-name #"\.")]
+    (when (pos? (count split-name))
+      (last split-name))))
+
 (defmacro map-for
   "Map comprehension. Takes a vector of one or more
   binding-form/collection-expr pairs, and returns a nested map of
