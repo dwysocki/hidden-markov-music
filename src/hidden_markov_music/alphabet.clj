@@ -9,7 +9,7 @@
   (util/usage-descriptor
     (->> ["Print the alphabet of the observation file."
           ""
-          "Usage: hidden-markov-music alphabet [<options>] <mode> <file>"]
+          "Usage: hidden-markov-music alphabet [<options>] <file>"]
       (string/join \newline))))
 
 (def cli-options
