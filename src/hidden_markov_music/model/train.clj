@@ -15,7 +15,7 @@
           "appropriately, otherwise each line of the file is treated as an"
           "observation symbol."
           ""
-          "Usage: hidden-markov-music model train [<options>] <observations>"]
+          "Usage: hidden-markov-music train [<options>] <observations>"]
       (string/join \newline))))
 
 (def cli-options

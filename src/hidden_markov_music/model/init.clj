@@ -11,7 +11,7 @@
           "Mode may either be 'random' or 'uniform', and determines whether"
           "the probabilities are initialized randomly or uniformly."
           ""
-          "Usage: hidden-markov-music model init [<options>] <mode>"]
+          "Usage: hidden-markov-music init [<options>] <mode>"]
       (string/join \newline))))
 
 (def cli-options

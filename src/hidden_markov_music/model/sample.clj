@@ -10,7 +10,7 @@
     (->> ["Takes a model from standard input and writes a sample observation"
           "sequence to a file."
           ""
-          "Usage: hidden-markov-music model sample [<options>] <file>"]
+          "Usage: hidden-markov-music sample [<options>] <file>"]
       (string/join \newline))))
 
 (def cli-options

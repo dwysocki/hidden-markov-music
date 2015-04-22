@@ -3,19 +3,20 @@
   Currently no such interface exists."
   (:require [clojure.tools.cli :refer [parse-opts]]
             [clojure.string :as string]
-            [hidden-markov-music.util :as util]
-            [hidden-markov-music.alphabet :as alphabet]
-            [hidden-markov-music.model.core :as model]
-            [hidden-markov-music.demo.core  :as demo])
+            [hidden-markov-music.util         :as util]
+            [hidden-markov-music.alphabet     :as alphabet]
+            [hidden-markov-music.model.init   :as init]
+            [hidden-markov-music.model.train  :as train]
+            [hidden-markov-music.model.sample :as sample]
+            [hidden-markov-music.demo.core    :as demo])
   (:gen-class))
 
 (def cli-arguments
-  {"alphabet" [alphabet/main
-               "Create an alphabet"]
-   "model" [model/main
-            "Perform an operation on a model"]
-   "demo"  [demo/main
-            "Various demonstrations"]})
+  {"alphabet" [alphabet/main "Create an alphabet"],
+   "init"     [init/main     "Initialize a model"],
+   "train"    [train/main    "Train a model"],
+   "sample"   [sample/main   "Sample from a model"],
+   "demo"     [demo/main     "Various demonstrations"]})
 
 (def description
   "hidden-markov-music [<options>] <argument> [<args>]")
