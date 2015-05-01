@@ -21,7 +21,8 @@
        (string/join \newline errors)))
 
 (defn exit [status msg]
-  (println msg)
+  (binding [*out* *err*]
+    (println msg))
   (System/exit status))
 
 (defn parse-int [x]

@@ -95,10 +95,10 @@
   labels."
   [states observations]
   {:type :HMM,
-   :states states,
+   :states       states,
    :observations observations,
-   :initial-prob (stats/random-stochastic-map states),
-   :transition-prob (stats/random-row-stochastic-map states states),
+   :initial-prob     (stats/random-stochastic-map states),
+   :transition-prob  (stats/random-row-stochastic-map states states),
    :observation-prob (stats/random-row-stochastic-map states observations)})
 
 (defn random-LogHMM
@@ -106,6 +106,23 @@
   observation labels."
   [states observations]
   (HMM->LogHMM (random-HMM states observations)))
+
+(defn uniform-HMM
+  "Returns an HMM with uniform probabilities, given the state and observation
+  labels."
+  [states observations]
+  {:type :HMM,
+   :states       states
+   :observations observations
+   :initial-prob     (stats/uniform-stochastic-map states),
+   :transition-prob  (stats/uniform-row-stochastic-map states states),
+   :observation-prob (stats/uniform-row-stochastic-map states observations)})
+
+(defn uniform-LogHMM
+  "Returns a logarithmic HMM with uniform probabilities, given the state and
+  observation labels."
+  [states observations]
+  (HMM->LogHMM (uniform-HMM states observations)))
 
 (defn stream->model
   "Reads an HMM or LogHMM from an EDN stream, and throws an exception if not

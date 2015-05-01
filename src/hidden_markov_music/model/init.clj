@@ -6,17 +6,17 @@
 
 (def usage
   (util/usage-descriptor
-    (->> ["Initialize a hidden Markov model with an alphabet read from stdin."
-          "Alphabet must contain one unique observation symbol per line."
-          "Mode may either be 'random' or 'uniform', and determines whether"
-          "the probabilities are initialized randomly or uniformly."
-          ""
-          "Usage: hidden-markov-music init [<options>] <mode>"]
+   (->> ["Usage: hidden-markov-music init [<options>] <mode>"
+         ""
+         "Initialize a hidden Markov model with an alphabet read from stdin."
+         "Alphabet must contain one unique observation symbol per line."
+         "Mode may either be 'random' or 'uniform', and determines whether"
+         "the probabilities are initialized randomly or uniformly."]
       (string/join \newline))))
 
 (def cli-options
   [["-s" "--states N"
-    "Number of hidden states"
+    "Number of hidden states (required)"
     :parse-fn util/parse-int
     :validate [#(< % 0x10000) "Must be an integer between 0 and 65536"]]
    ["-h" "--help"]])
@@ -33,6 +33,9 @@
       (not= 1 (count arguments))
       (util/exit 1 (usage summary))
 
+      (nil? (:states options))
+      (util/exit 1 (usage summary))
+
       errors
       (util/exit 1 (util/error-msg errors)))
 
@@ -47,7 +50,8 @@
             states (range (:states options))
             mode   (first arguments)
             init-fn (case mode
-                      "random" hmm/random-LogHMM
+                      "random"  hmm/random-LogHMM
+                      "uniform" hmm/uniform-LogHMM
                       (util/exit 1 (str mode " is not a valid mode")))
             model (init-fn states alphabet)]
         (if (hmm/valid-hmm? model)

@@ -7,10 +7,10 @@
 
 (def usage
   (util/usage-descriptor
-    (->> ["Takes a model from standard input and writes a sample observation"
-          "sequence to a file."
-          ""
-          "Usage: hidden-markov-music sample [<options>] <file>"]
+   (->> ["Usage: hidden-markov-music sample [<options>] <file>"
+         ""
+         "Reads a model from standard input and generates a song, and saves it"
+         "to the given file."]
       (string/join \newline))))
 
 (def cli-options

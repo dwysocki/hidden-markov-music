@@ -8,14 +8,14 @@
 
 (def usage
   (util/usage-descriptor
-    (->> ["Takes a model from standard input and a file containing"
-          "observations, and writes an updated model to standard output."
-          "Trains the model using the Baum-Welch algorithm. If the"
-          "observation file extension is recognized, the file is parsed"
-          "appropriately, otherwise each line of the file is treated as an"
-          "observation symbol."
-          ""
-          "Usage: hidden-markov-music train [<options>] <observations>"]
+   (->> ["Usage: hidden-markov-music train [<options>] <file>"
+         ""
+         "Reads a model from standard input, and the given music file."
+         "Writes an updated model to standard output, as obtained by the"
+         "Baum-Welch algorithm."
+         "Tries to recognize the file format from its extension. If format is"
+         "unsupported, assumes file is a text file where each line contains"
+         "one observation symbol."]
       (string/join \newline))))
 
 (def cli-options

@@ -19,7 +19,10 @@
    "demo"     [demo/main     "Various demonstrations"]})
 
 (def description
-  "hidden-markov-music [<options>] <argument> [<args>]")
+  (->> ["hidden-markov-music [<options>] <argument> [<args>]"
+        ""
+        "Perform an operation on a musical hidden Markov model."]
+    (string/join \newline)))
 
 (defn -main
   [& args]
