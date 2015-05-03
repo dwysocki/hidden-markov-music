@@ -1,4 +1,4 @@
-(defproject hidden-markov-music "0.1.4"
+(defproject hidden-markov-music "0.1.5-SNAPSHOT"
   :description "Generate original musical scores by means of a hidden Markov
                 model."
   :url "https://github.com/dwysocki/hidden-markov-music"
