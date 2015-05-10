@@ -90,6 +90,16 @@
        (stats/log-row-stochastic-map? (:observation-prob model)
                                       :decimal decimal)))
 
+(defn count-states
+  "Returns the number of states in the model."
+  [model]
+  (-> model :states count))
+
+(defn count-observations
+  "Returns the number of observation symbols in the model."
+  [model]
+  (-> model :observations count))
+
 (defn random-HMM
   "Returns an HMM with random probabilities, given the state and observation
   labels."
