@@ -4,19 +4,19 @@
   (:require [clojure.string :as string]
             [hidden-markov-music.util         :as util]
             [hidden-markov-music.alphabet     :as alphabet]
+            [hidden-markov-music.model.count  :as count]
             [hidden-markov-music.model.init   :as init]
             [hidden-markov-music.model.train  :as train]
             [hidden-markov-music.model.sample :as sample]
-            [hidden-markov-music.inspect.core :as inspect]
             [hidden-markov-music.demo.core    :as demo])
   (:gen-class))
 
 (def cli-arguments
   {"alphabet" [alphabet/main "Create an alphabet"],
+   "count"    [count/main    "Count an attribute of a model"]
    "init"     [init/main     "Initialize a model"],
    "train"    [train/main    "Train a model"],
    "sample"   [sample/main   "Sample from a model"],
-   "inspect"  [inspect/main  "Inspect a model"]
    "demo"     [demo/main     "Various demonstrations"]})
 
 (def description
