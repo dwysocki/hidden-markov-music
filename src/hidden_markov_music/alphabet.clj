@@ -13,10 +13,7 @@
       (string/join \newline))))
 
 (def cli-options
-  [[nil "--simplify"
-    "Extract only the most simple information from the notes."
-    :default false]
-   ["-h" "--help"]])
+  util/cli-options-help)
 
 (defn main
   [args]
@@ -34,9 +31,6 @@
 
     (let [file-name (first arguments)
           alphabet (music/parse-filename-input file-name)
-          alphabet (if (:simplify options)
-                     (map jfugue/simplify alphabet)
-                     alphabet)
           alphabet (set alphabet)]
       (doseq [sym alphabet]
         (println sym)))))

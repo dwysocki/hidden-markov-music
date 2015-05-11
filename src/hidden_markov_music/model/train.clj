@@ -29,9 +29,6 @@
     :default 10
     :parse-fn util/parse-int
     :validate [#(< 0 % 0x100000) "Must be an integer between 0 and 65536"]]
-   [nil "--simplify"
-    "Extract only the most simple information from the notes."
-    :default false]
    ["-h" "--help"]])
 
 (defn main
@@ -51,9 +48,6 @@
     (let [observation-filename (first arguments)
           model (hmm/stream->model *in*)
           observations (music/parse-filename-input observation-filename)
-          observations (if (:simplify options)
-                         (map jfugue/simplify observations)
-                         observations)
           observations (lazy-cat observations [nil])]
       (pr (hmm/train-model model observations
                            :decimal  (:decimal  options)
