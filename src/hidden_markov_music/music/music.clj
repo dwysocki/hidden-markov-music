@@ -7,9 +7,16 @@
   Only recognizes .mid and .midi extensions, and is case insensitive."
   [extension]
   (when extension
-    (let [extension-lower (clojure.string/lower-case extension)]
-      (or (= extension-lower "mid")
-          (= extension-lower "midi")))))
+    (#{"mid" "midi"}
+     (clojure.string/lower-case extension))))
+
+(defn jfugue?
+  "Returns true if the extension is a recognized JFugue extension.
+  Only recognizes .jfugue extension, and is case insensitive."
+  [extension]
+  (when extension
+    (#{"jfugue"}
+     (clojure.string/lower-case extension))))
 
 
 (defn parse-filename-input
@@ -23,8 +30,13 @@
     (cond
       (midi? extension)
       (-> file-name
-          clojure.java.io/input-stream
+          clojure.java.io/file
           jfugue/midi->notes)
+
+      (jfugue? extension)
+      (-> file-name
+          clojure.java.io/file
+          jfugue/jfugue->notes)
 
       :else
       (with-open [rdr (clojure.java.io/reader file-name)]
@@ -40,6 +52,11 @@
       (->> notes
            jfugue/notes->pattern
            (jfugue/pattern->midi-file file-name))
+
+      (jfugue? extension)
+      (->> notes
+           jfugue/notes->pattern
+           (jfugue/pattern->jfugue-file file-name))
 
       :else
       (with-open [wrtr (clojure.java.io/writer file-name)]
