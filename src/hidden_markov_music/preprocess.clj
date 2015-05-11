@@ -17,6 +17,21 @@
     "Fix the duration of each note to a given value"]
    ["-h" "--help"]])
 
+(defn fix-pitch [observations pitch]
+  observations)
+
+(defn fix-duration [observations duration]
+  observations)
+
+(defn fix-attack [observations attack]
+  observations)
+
+(defn fix-decay [observations decay]
+  observations)
+
+
+
+
 (defn main
   [args]
   (let [{:keys [options arguments summary errors]}
@@ -35,6 +50,9 @@
           observations (music/parse-filename-input input-filename)
           preprocessed-observations
           (cond-> observations
-            nil identity)]
+            (:fix-pitch    options) (fix-pitch    (:fix-pitch    options))
+            (:fix-duration options) (fix-duration (:fix-duration options))
+            (:fix-attack   options) (fix-attack   (:fix-attack   options))
+            (:fix-decay    options) (fix-decay    (:fix-decay    options)))]
       (music/parse-filename-output output-filename
                                    preprocessed-observations))))

@@ -7,7 +7,7 @@
   Only recognizes .mid and .midi extensions, and is case insensitive."
   [extension]
   (when extension
-    (#{"mid" "midi"}
+    (#{"mid", "midi"}
      (clojure.string/lower-case extension))))
 
 (defn jfugue?
@@ -18,6 +18,13 @@
     (#{"jfugue"}
      (clojure.string/lower-case extension))))
 
+(defn music-xml?
+  "Returns true if the extension is a recognized JFugue extension.
+  Only recognizes .jfugue extension, and is case insensitive."
+  [extension]
+  (when extension
+    (#{"mxl", "xml"}
+     (clojure.string/lower-case extension))))
 
 (defn parse-filename-input
   "Parses music from the filename. If the filename has a known extension,
@@ -38,6 +45,11 @@
           clojure.java.io/file
           jfugue/jfugue->notes)
 
+      (music-xml? extension)
+      (-> file-name
+          clojure.java.io/file
+          jfugue/music-xml->notes)
+
       :else
       (with-open [rdr (clojure.java.io/reader file-name)]
         (doall (line-seq rdr))))))
@@ -57,6 +69,11 @@
       (->> notes
            jfugue/notes->pattern
            (jfugue/pattern->jfugue-file file-name))
+
+#_      (music-xml? extension)
+#_      (->> notes
+           jfugue/notes->pattern
+           (jfugue/pattern->music-xml-file file-name))
 
       :else
       (with-open [wrtr (clojure.java.io/writer file-name)]
