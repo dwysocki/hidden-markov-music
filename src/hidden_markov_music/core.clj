@@ -10,6 +10,7 @@
             [hidden-markov-music.model.init       :as init]
             [hidden-markov-music.model.train      :as train]
             [hidden-markov-music.model.sample     :as sample]
+            [hidden-markov-music.model.signature  :as signature]
             [hidden-markov-music.demo.core        :as demo])
   (:gen-class))
 
@@ -34,6 +35,9 @@
 
    "sample"
    [sample/main "Sample from a model"],
+
+   "signature"
+   [signature/main "Obtain a model's signature"]
 
    "demo"
    [demo/main "Various demonstrations"]})

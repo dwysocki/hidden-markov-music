@@ -1,8 +1,20 @@
 (ns hidden-markov-music.stats
   "General statistical functions."
-  (:require [hidden-markov-music.math :refer [log exp log-sum]]
+  (:require [hidden-markov-music.math :refer [log exp log-sum mean stdev]]
             [hidden-markov-music.util :refer [map-for
                                               numbers-almost-equal?]]))
+
+(defn positive-outliers
+  "Filters out all elements from `coll` except for those more than `sigma`
+  standard deviations *above* the mean."
+  [coll sigma]
+  (let [mean  (mean  coll)
+        stdev (stdev coll)]
+    (filter (fn [x]
+              (> (/ (- x mean)
+                    stdev)
+                 sigma))
+            coll)))
 
 (defn normalize
   "Normalizes a sequence."

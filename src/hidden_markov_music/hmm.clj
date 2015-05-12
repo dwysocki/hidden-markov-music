@@ -5,7 +5,8 @@
             [hidden-markov-music.random :refer [select-random-key]]
             [hidden-markov-music.util :refer [map-for map-vals
                                               numbers-almost-equal?
-                                              maps-almost-equal?]]
+                                              maps-almost-equal?
+                                              int-map->vector]]
             [clojure.tools.reader :as edn])
   (:use clojure.pprint))
 
@@ -99,6 +100,57 @@
   "Returns the number of observation symbols in the model."
   [model]
   (-> model :observations count))
+
+(defn- int-map->vector--pad-zero
+  [m]
+  (int-map->vector m 0))
+
+(defmulti model->transition-vector
+  "Returns the transition feature vector of the model."
+  model-type)
+
+(defmulti model->observation-vector
+  "Returns the observation feature vector of the model."
+  model-type)
+
+(defmethod model->transition-vector :HMM
+  [model & {:keys [sigma] :or {sigma 1.0}}]
+  (->> model
+       :transition-prob
+       vals
+       (map vals)
+       (map #(count (stats/positive-outliers % sigma)))       
+       frequencies
+       int-map->vector--pad-zero
+#_       int-map->vector
+#_       #(int-map->vector % 0)))
+
+(defmethod model->transition-vector :LogHMM
+  [model & {:keys [sigma] :or {sigma 1.0}}]
+  (model->transition-vector (LogHMM->HMM model) :sigma sigma))
+
+(defmethod model->observation-vector :HMM
+  [model & {:keys [sigma] :or {sigma 1.0}}]
+  (->> model
+       :observation-prob
+       vals
+       (map vals)
+       (map #(count (stats/positive-outliers % sigma)))
+       frequencies
+       int-map->vector--pad-zero
+#_       (fn [m] (int-map->vector m 0))))
+
+(defmethod model->observation-vector :LogHMM
+  [model & {:keys [sigma] :or {sigma 1.0}}]
+  (model->observation-vector (LogHMM->HMM model) :sigma sigma))
+
+(defn model->signature
+  "Returns the signature of the model."
+  [model & {:keys [sigma] :or {sigma 1.0}}]
+  [(model->transition-vector  model :sigma sigma),
+   (model->observation-vector model :sigma sigma)])
+
+
 
 (defn random-HMM
   "Returns an HMM with random probabilities, given the state and observation

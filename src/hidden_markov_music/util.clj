@@ -83,6 +83,25 @@
   (zipmap (keys m)
           (map f (vals m))))
 
+(defn int-map->vector
+  "Takes a map with non-negative integer keys, and transforms it into a vector
+  where the element at index `i` is in the value mapped to by key `i`. If an
+  intermediate key is missing, the default value is inserted in its place.
+
+  WARNING: Causes infinite loop if map contains negative or non-integer keys."
+  ([m]
+     (int-map->vector m nil))
+  ([m default]
+     (loop [i 0
+            m (transient m)
+            v (transient [])]
+       (if (pos? (count m))
+         (let [value (get m i default)]
+           (recur (inc i)
+                  (dissoc! m i)
+                  (conj! v value)))
+         (persistent! v)))))
+
 (defn numbers-almost-equal?
   "Returns true if two numbers are equal to the given decimal place"
   [x y & {:keys [decimal] :or {decimal 6}}]
