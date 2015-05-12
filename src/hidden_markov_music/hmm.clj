@@ -845,32 +845,100 @@
 
 (defn train-model
   "Trains the model via the Baum-Welch algorithm."
-  ([model observations & {:keys [decimal    max-iter]
-                          :or   {decimal 15 max-iter 100}}]
-     (let [;; generate the infinite lazy seq of trained models,
-           ;; and take the maximum number of them
-           trained-model-likelihoods
-           (take max-iter
-                 (train-model-likelihood-seq model
-                                             observations))
-           ;; create a sliding window of pairs of trained-models
-           trained-model-likelihood-pairs
-           (partition 2 1 trained-model-likelihoods)]
-       (->> trained-model-likelihood-pairs
-            ;; take from the list until convergence to the given decimal place
-            ;; is reached
-            (take-while (fn [[[model-prev likelihood-prev]
-                              [model      likelihood     ]]]
-                          (not (numbers-almost-equal? likelihood-prev
-                                                      likelihood
-                                                      :decimal decimal))))
-            ;; the last element is where convergence happened
-            last
-            ;; extract the [model likelihood] pair later in the window
-            second
-            ;; extract the model itself from the [model likelihood] pair
-            first))))
+  [model observations & {:keys [decimal     max-iter]
+                         :or   {decimal 15, max-iter 100}}]
+  (let [;; generate the infinite lazy seq of trained models,
+        ;; and take the maximum number of them
+        trained-model-likelihoods
+        (take max-iter
+              (train-model-likelihood-seq model
+                                          observations))
+        ;; create a sliding window of pairs of trained-models
+        trained-model-likelihood-pairs
+        (partition 2 1 trained-model-likelihoods)]
+    (->> trained-model-likelihood-pairs
+         ;; take from the list until convergence to the given decimal place
+         ;; is reached
+         (take-while (fn [[[model-prev likelihood-prev]
+                           [model      likelihood     ]]]
+                       (not (numbers-almost-equal? likelihood-prev
+                                                   likelihood
+                                                   :decimal decimal))))
+         ;; the last element is where convergence happened
+         last
+         ;; extract the [model likelihood] pair later in the window
+         second
+         ;; extract the model itself from the [model likelihood] pair
+         first)))
 
+(defn- select-model [candidate-models observations
+                     [likelihood states-best states-best-prev]
+                     [states states-prev]]
+  (let [m (get candidate-models states)
+        new-likelihood (likelihood-forward m observations)]
+    (if (> new-likelihood likelihood)
+      [new-likelihood states      states-prev]
+      [likelihood     states-best states-best-prev])))
+
+(defn auto-train-model
+  "Trains a new model via the Baum-Welch algorithm, searching for the optimal
+  number of states automatically."
+  [observations alphabet &
+   {:keys [decimal,    max-iter,     min,   max,     bins,    mode]
+    :or   {decimal 15, max-iter 100, min 1, max 100, bins 10, mode :uniform}}]
+  (let [init-fn (case mode
+                  :uniform uniform-LogHMM
+                  :random  random-LogHMM
+                  (throw (ex-info "invalid mode" {})))
+        train-model-fn (fn [n-states]
+                         (let [init-model (init-fn (range n-states) alphabet)]
+                           (train-model init-model observations
+                                        :decimal  decimal
+                                        :max-iter max-iter)))
+        highest-state-model (train-model-fn max)
+        highest-state-likelihood (likelihood-forward highest-state-model
+                                                     observations)]
+    (loop [best-model highest-state-model
+           likelihood highest-state-likelihood
+           min        min
+           max        max]
+      (let [step (int (Math/ceil (/ (- max min)
+                                    bins)))
+
+            states (range min max step)
+
+            candidate-models
+            (map-for [s states]
+              (train-model-fn s))
+
+            ; put the states into pairs to iterate over
+            ; e.g. ([10 9] [9 8] ... [2 1] [1])
+            state-pairs (->> states
+                             reverse
+                             (partition-all 2 1))
+
+            [new-likelihood new-max new-min]
+            (reduce (partial select-model candidate-models observations)
+                    ; initialize likelihood to -infinity,
+                    ; and the number of states to nil
+                    [Double/NEGATIVE_INFINITY nil nil]
+                    state-pairs)
+
+            new-best-model (get candidate-models new-max)]
+        (cond
+          ; new best model is worse than the previous best, so we stop here
+          (> likelihood new-likelihood)
+          best-model
+
+          ; new best model is better than the previous best, and we can
+          ; continue narrowing our search, so we do
+          new-min
+          (recur new-best-model new-likelihood new-min new-max)
+
+          ; new best model is better than the previous best, and we cannot
+          ; narrow our search any further, so we stop here
+          :else
+          new-best-model)))))
 
 
 (defn random-initial-state
