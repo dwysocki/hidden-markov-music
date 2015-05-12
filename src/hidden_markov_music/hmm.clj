@@ -121,9 +121,7 @@
        (map vals)
        (map #(count (stats/positive-outliers % sigma)))       
        frequencies
-       int-map->vector--pad-zero
-#_       int-map->vector
-#_       #(int-map->vector % 0)))
+       int-map->vector--pad-zero))
 
 (defmethod model->transition-vector :LogHMM
   [model & {:keys [sigma] :or {sigma 1.0}}]
@@ -137,8 +135,7 @@
        (map vals)
        (map #(count (stats/positive-outliers % sigma)))
        frequencies
-       int-map->vector--pad-zero
-#_       (fn [m] (int-map->vector m 0))))
+       int-map->vector--pad-zero))
 
 (defmethod model->observation-vector :LogHMM
   [model & {:keys [sigma] :or {sigma 1.0}}]
