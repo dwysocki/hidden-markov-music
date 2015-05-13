@@ -8,7 +8,7 @@
 
 (def usage
   (util/usage-descriptor
-   (->> ["Usage: hidden-markov-music auto-train [<options>] <file> <mode>"
+   (->> ["Usage: hidden-markov-music auto-train [<options>] <file>"
          ""
          "Reads a music file, and trains a model by the Baum-Welch algorithm."
          "Selects the number of states by searching over a user-provided range"
