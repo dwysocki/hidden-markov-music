@@ -1,82 +1,346 @@
 \documentclass[12pt]{article}
 
-\author{Daniel Wysocki}
-\title{Hidden Markov Music}
-\date{Spring 2015}
+\author{Daniel Wysocki and Craig Graci}
+\title{Modeling music using hidden Markov models}
+\date{May 13, 2015}
 
 
-\usepackage[backend=bibtex]{biblatex}
+\usepackage[backend=bibtex, style=authoryear]{biblatex}
+\usepackage{amsmath,amsfonts,amssymb,mathrsfs,physics}
+\PassOptionsToPackage{hyphens}{url}
+\usepackage[hidelinks,colorlinks,urlcolor=blue,citecolor=blue,linkcolor=blue]{hyperref}
+\usepackage{listings}
+
+\DeclareMathOperator{\signature}{\mathcal{S}}
+
 \addbibresource{hmm.bib}
 
 \begin{document}
 
 \maketitle
 
+\begin{abstract}
 
-\begin{itemize}
+  We model songs as a sequence of notes emitted by a hidden Markov model.
+  A model is trained on a given song, and can be used to randomly generate new,
+  similar songs, as well as study the structure of the composition.
+  We produce a ``signature'' for each song, defined by two feature vectors,
+  based on the emission ($\vb{e}$) and transition ($\vb{t}$) probabilities.
 
-\item \fullcite{cope1996}
+\end{abstract}
 
-\emph{
-  A classic work in AI music composition. While very different from my
-  approach to the problem, it will no doubt be insightful.
-}
+\section{Introduction}
 
+Algorithmic music composition is a subject of much interest in the artificial
+intelligence research community. Many approaches have been taken to produce
+acceptable music, as the task is not straightforward. The classic work,
+Experiments in Music Intelligence by \textcite{cope1996}, explores a range of
+approaches, from knowledge-based systems, to machine learning approaches.
+A knowledge-based system works by following a set of rules defined by the
+programmer, and is very difficult to get right, due to its rigidity. Machine
+learning, on the other hand, creates a model from existing compositions, which
+are used as generators for new compositions. The latter approach is also
+employed by \textcite{marchini2011}. In order to produce satisfying music, it
+is often necessary to combine the two approaches in some manner.
 
-\item \fullcite{jordanous2009}
-
-\emph{
-  A work which makes use of HMMs to implement an AI musical accompanist.
-  This is in many ways similar to my project, and will provide many insights.
-}
-
-
-\item \fullcite{lee2006}
-
-\emph{
-  An HMM approach to identifying chords in audio. Will be useful in identifying
-  chords for implementing an HMM based on higher-level musical structures.
-}
-
-
-\item \fullcite{li2014}
-
-\emph{
-  An HMM approach to identifying chord \emph{progressions} in audio. This is a
-  layer of abstraction higher than simply identifying chords, and I suspect
-  will produce much better results than simply modeling note or chord
-  transition probabilities.
-}
+The current work employs a pure machine learning approach, training a hidden
+Markov model \parencite{rabiner1989} on a song (Section \ref{sec:hmm}). This
+model is used as a generator (Section \ref{sec:alg-comp}), as well as a means
+of observing the structure of the training songs
+(Section \ref{sec:signatures}).
 
 
-\item \fullcite{baum1966}
+\section{Data}
 
-\emph{
-  A historic paper by one of the creators of the Baum--Welsh algorithm.
-  While at an unnecessarily high mathematical level for my purposes, it will
-  be important to reference when making use of his algorithm.
-}
+\subsection{Format}
 
-
-\item \fullcite{stamp2012}
-
-\emph{
-  A good overview of Hidden Markov Models, explaining the underlying theory and
-  the implementation and uses of the forward--backward algorithm, and the
-  Baum--Walsh algorithm.
-}
+Training data were provided to the model using the JFugue \parencite{jfugue4}
+MusicString format. The format is ideal, as it allows a song to be represented
+as a simple linear sequence of notes. JFugue also has the ability to convert
+MusicStrings into MIDI, for easy playback.
 
 
-\item \fullcite{ibe2013}
+\subsection{Selected Compositions}
 
-\emph{
-  A text which serves as a good general overview of Markov processes.
-}
+The training songs used were limited to simple melodies, listed in Table
+\ref{tab:melodies}. The selected songs were taken from \textcite{durey2001},
+who used hidden Markov models to identify melodies. While more complex songs
+may be used in the future, such simple melodies may be more accurately modeled
+by low-dimensional hidden Markov models.
+
+\begin{table}[t]
+\centering
+\begin{tabular}{l|l}
+& Title
+\\\hline\hline
+1 & Auld Lang Syne
+\\
+2 & Barbara Allen
+\\
+3 & Frere Jacques
+\\
+4 & Happy Birthday
+\\
+5 & I'm a Little Teapot
+\\
+6 & Mary Had a Little Lamb
+\\
+7 & Scarborough Fair
+\\
+8 & This Old Man
+\\
+9 & Three Blind Mice
+\\
+10 & Twinkle Twinkle Little Star
+\end{tabular}
+\caption{Table of melodies used, see \ref{app:melodies} for transcriptions.}
+\label{tab:melodies}
+\end{table}
+
+
+\section{Modeling}
+
+\subsection{Hidden Markov Model}
+\label{sec:hmm}
+
+A hidden Markov model is used to describe each song. A hidden Markov model can
+be described by the following \parencite{rabiner1989}:
+
+1) The set of hidden states, denoted
+$S = \{ s_1, s_2, \ldots, s_N \}$.
+At time $t$, the current state is denoted $q_t$. These states represent states
+of the song, which are determined automatically, and are described in more
+detail in Section \ref{sec:signatures}.
+
+2) The set of possible observation symbols, denoted
+$V = \{ v_1, v_2, \ldots, v_M \}$,
+which are emitted by each state with a certain probability distribution. These
+observations are the individual notes of the song. There is also a special
+``end of song'' note appended to the song, which denotes the termination
+of the song.
+
+3) The state transition probability distribution
+$A = \{ a_{ij} \}$,
+where
+\begin{equation}
+  a_{ij} = P[ q_{t+1} = s_j | q_t = s_i ], \quad 1 \leq i, j \leq N.
+\end{equation}
+This defines the probability that the song will make a transition between each
+pair of states.
+
+4) The observation probability distribution in state $j$,
+$B = \{ b_j(k) \}$,
+where
+\begin{align}
+  b_j(k) = P[ v_k \text{ at } t | q_t = s_j ] \quad
+& 1 \leq j \leq N \notag
+\\
+& 1 \leq k \leq M.
+\end{align}
+This defines the probability of a particular note being played while the song
+is in a particular state.
+
+5) The initial state distribution
+$\pi = \{ \pi_i \}$, where
+\begin{equation}
+  \pi_i = P[ q_1 = s_i ], \quad 1 \leq i \leq N.
+\end{equation}
+This defines the probability of the song beginning in any given state.
+
+A model is denoted concisely as $\lambda = (A, B, \pi)$, where $N$ and $M$ are
+contained within $A$ and $B$. Once a model is created -- either with random or
+uniform probabilities -- it is improved to better describe a sequence of
+observations, $O = (o_1, o_2, o_3, \ldots, o_T)$. This is done using the
+Baum--Welch algorithm \parencite{baum1966}, which iteratively improves the
+model in order to find a local maxima for the likelihood $P[O|\lambda]$.
+Likelihood is determined using the forward algorithm. These algorithms were
+implemented according to \textcite{mann2006} and \textcite{ibe2013}.
+
+
+\subsection{Model Selection}
+
+When the system being modeled has well defined states, $N$ can be chosen such
+that each state is described uniquely by the model. However, in the case of a
+song, it is not entirely clear what a state corresponds to. Therefore, it was
+necessary to implement a simple algorithm for selecting $N$.
+
+A minimum and maximum number of states, $N_{\rm min}$ and $N_{\rm max}$ are
+provided manually, in order to restrict the search space. Then the search space
+is divided into a number of bins, $b$. A model is trained at $N_{\rm max}$, and
+$b$ (or fewer) equally spaced integer values of $N_i$, such that
+$N_{\rm min} \leq N < N_{\rm max}$. The likelihood, $P[O|\lambda]$, is computed
+for each model, and the model which maximizes that likelihood is taken. If
+multiple models maximize the likelihood, the one with the lowest $N$ is
+taken. The procedure then repeats with $N_{\rm min} = N_{i-1}$, and
+$N_{\rm max} = N_i$, until the search space cannot be further subdivided.
+
+
+\subsection{Algorithmic Composition} \label{sec:alg-comp}
+
+Once a model has been obtained for a song, it can be used as a generator for
+new songs. The procedure for song generation is as follows:
+
+\begin{enumerate}
+\item With probability $\pi_i$, let the initial state $q_1 = s_i$.
+
+\item When at time $t$, the current state is $q_t = s_j$, emit note $v_k$ with
+  probability $b_j(k)$. If that note is the ``end of song'' note, terminate,
+  otherwise let $q_{t+1} = s_i$ with probability $a_{ji}$ and repeat this step.
+\end{enumerate}
+
+Once the procedure terminates, the notes are converted to a MIDI file using
+JFugue. Ten compositions have been made for each of the songs of interest, and
+can be listened to at
+
+\url{https://dwysocki.github.io/csc466/simple_compositions/}
 
 
 
 
-\end{itemize}
+\subsection{Signatures} \label{sec:signatures}
+
+A ``signature'' is computed for each song, based on its model. It is a 2-tuple
+$\signature = (\vb{e}, \vb{t})$, where $\vb{e}$ is the emission feature
+vector, and $\vb{t}$ is the transition feature vector.
+
+$\vb{e}$ is defined as
+\begin{equation}
+  \vb{e} = \langle e_1, e_2, e_3, \ldots \rangle,
+\end{equation}
+where $e_i$ is the number of states in the model with $i$ notes likely to be
+emitted. Here, ``likely'' means that the probability of a note being emitted is
+more than one standard deviation above the mean for that state. If $e_1$ is the
+dominant term, that means that the majority of states correspond to precisely
+one note. Interestingly, $e_2 = e_3 = \ldots = 0$ for every song except
+Barbara Allen, which has $e_2 = 1$.
+
+$\vb{t}$ is defined as
+\begin{equation}
+  \vb{t} = \langle t_1, t_2, t_3, \ldots \rangle,
+\end{equation}
+where $t_i$ is the number of states in the model with $i$ states likely to be
+transitioned to. When a state only transitions to one state, that state
+is part of a ``linear progression'', and if it transitions to $n > 1$ states,
+it is an ``$n$-way branch''. Linear progressions comprised the majority of
+states for all songs tested, with varying distributions of $n$-way branches.
+Table \ref{tab:signatures} lists the signatures of the songs of interest.
+
+\begin{table}[t]
+\centering
+\begin{tabular}{l||l|llllll|ll}
+  \textbf{Title}
+& $N$ & $t_1$ & $t_2$ & $t_3$ & $t_4$ & $t_5$ & $t_6$ & $e_1$ & $e_2$
+\\\hline\hline
+  Auld Lang Syne
+& 55
+& 32 & 18 & 5 & 0 & 0 & 0
+& 55 & 0
+\\
+  Barbara Allen
+& 55
+& 31 & 23 & 1 & 0 & 0 & 0
+& 54 & 1
+\\
+  Frere Jacques
+& 60
+& 33 & 17 & 8 & 1 & 1 & 0
+& 60 & 0
+\\
+  Happy Birthday
+& 54
+& 34 & 17 & 3 & 0 & 0 & 0
+& 54 & 0
+\\
+  I'm a Little Teapot
+& 43
+& 32 & 9 & 2 & 0 & 0 & 0
+& 43 & 0
+\\
+  Mary Had a Little Lamb
+& 47
+& 25 & 11 & 11 & 0 & 0 & 0
+& 47 & 0
+\\
+  Scarborough Fair
+& 53
+& 44 & 7 & 2 & 0 & 0 & 0
+& 53 & 0
+\\
+  This Old Man
+& 49
+& 24 & 17 & 7 & 1 & 0 & 0
+& 49 & 0
+\\
+  Three Blind Mice
+& 60
+& 25 & 12 & 15 & 5 & 2 & 1
+& 60 & 0
+\\
+  Twinkle Twinkle Little Star
+& 33
+& 15 & 11 & 6 & 2 & 0 & 0
+& 34 & 0
+\end{tabular}
+\caption{Signatures for the selected songs.}
+\label{tab:signatures}
+\end{table}
+
+
+\section{Conclusion}
+
+This work has demonstrated that hidden Markov models are capable of capturing
+some of the essence of music, and serve as effective generators. However, to
+create truly satisfactory music, one will have to extend the method beyond a
+simple hidden Markov model. Extensions of the hidden Markov model, such as the
+left--right HMM \parencite{rabiner1989} and the 
+generalized HMM \parencite{kulp1996} may be able to perform better.
+
+Further investigation into the song models should be performed. The feature
+vectors may be used for $k$-means clustering. Linear progressions may also be
+extracted, identifying the defining parts of songs. 
+
+
+
+\printbibliography
+
+
+\appendix
+
+\section{Song Transcriptions}
+\label{app:melodies}
+
+The JFugue MusicStrings used as training data are provided here verbatim.
+
+\textbf{Auld Lang Syne}
+\lstinputlisting{songs/auld-lang-syne.jfugue}
+
+\textbf{Barbara Allen}
+\lstinputlisting{songs/barbara-allen.jfugue}
+
+\textbf{Frere Jacques}
+\lstinputlisting{songs/frere-jacques.jfugue}
+
+\textbf{Happy Birthday}
+\lstinputlisting{songs/happy-birthday.jfugue}
+
+\textbf{I'm a Little Teapot}
+\lstinputlisting{songs/im-a-little-teapot.jfugue}
+
+\textbf{Mary Had a Little Lamb}
+\lstinputlisting{songs/mary-had-a-little-lamb.jfugue}
+
+\textbf{Scarborough Fair}
+\lstinputlisting{songs/scarborough-fair.jfugue}
+
+\textbf{This Old Man}
+\lstinputlisting{songs/this-old-man.jfugue}
+
+\textbf{Three Blind Mice}
+\lstinputlisting{songs/three-blind-mice.jfugue}
+
+\textbf{Twinkle Twinkle Little Star}
+\lstinputlisting{songs/twinkle-twinkle-little-star.jfugue}
+
 
 
 \end{document}
