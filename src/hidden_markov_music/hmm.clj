@@ -71,7 +71,7 @@
 
 (defmethod valid-hmm? :default
   [model & args]
-  nil)
+  false)
 
 (defmethod valid-hmm? :HMM
   [model & {:keys [decimal] :or {decimal 10}}]
