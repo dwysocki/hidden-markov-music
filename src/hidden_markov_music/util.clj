@@ -83,6 +83,31 @@
   (zipmap (keys m)
           (map f (vals m))))
 
+(defn subst-if
+  "Replaces elements in `coll` with `val` if `pred` returns `true`, otherwise
+  leaves them the same.
+
+  ```
+  (subst-if pos? [-1 0 1 2 3] nil)
+  ;;=> (-1 0 nil nil nil)
+
+  ```"
+  [pred coll val]
+  (map #(if (pred %) val %)
+       coll))
+
+(defn subst-vals
+  "Replaces values in `map` with `val` if `pred` returns `true` for that value,
+  otherwise left unchanged.
+
+  ```
+  (subst-vals pos? {:a -1, :b 0, :c 1, :d 2, :e 3} nil)
+  ;;=> {:a -1, :b 0, :c nil, :d nil, :e nil}
+  ```"
+  [pred map val]
+  (zipmap (keys map)
+          (subst-if pred (vals map) val)))
+
 (defn int-map->vector
   "Takes a map with non-negative integer keys, and transforms it into a vector
   where the element at index `i` is in the value mapped to by key `i`. If an

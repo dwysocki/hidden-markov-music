@@ -1001,3 +1001,16 @@
   ([model states]
      (sample-emissions (LogHMM->HMM model)
                        states)))
+
+(defmulti prune
+  "Prunes a model of unlikely transitions and emissions. Whether a transition
+  is likely is determined by the predicate `likely?`."
+  model-type)
+
+(defmethod prune :HMM
+  [model likely?]
+  (let [
+        (-> model
+            :transition-prob
+            )
+        ]))
